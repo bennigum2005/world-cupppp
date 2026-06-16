@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>World Cup Bracket Predictor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <div class="hdr">
+      <h1>⚽ World Cup Bracket Predictor</h1>
+      <p>Enter your details, then pick your winners once the playoff bracket is confirmed.</p>
+    </div>
+
+    <div class="status-bar" id="statusBar">
+      <div class="dot dot-red" id="statusDot"></div>
+      <span id="statusText"><strong>Bracket locked</strong> — playoff teams are not confirmed yet.</span>
+    </div>
+
+    <!-- Admin panel (hidden by default, toggle with ?admin=1 in URL) -->
+    <div class="admin-panel" id="adminPanel" style="display:none;">
+      <p class="admin-label">⚙ Admin controls</p>
+      <div class="admin-actions">
+        <button class="btn btn-primary" onclick="unlockBracket()">Unlock bracket (set demo teams)</button>
+        <button class="btn" onclick="lockBracket()">Lock bracket</button>
+        <button class="btn btn-danger" onclick="resetCurrentPicks()">Reset my picks</button>
+      </div>
+    </div>
+
+    <!-- Entry form -->
+    <div class="card" id="entrySection">
+      <h2>Your details</h2>
+      <div class="form-row">
+        <div class="field">
+          <label for="inp-name">Name</label>
+          <input type="text" id="inp-name" placeholder="Your name" />
+        </div>
+        <div class="field">
+          <label for="inp-email">Email</label>
+          <input type="email" id="inp-email" placeholder="you@example.com" />
+        </div>
+      </div>
+      <p class="hint">Your email is only used to identify your entry — it won't be shared.</p>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="registerEntry()">Save my details →</button>
+        <span class="form-msg" id="entryMsg"></span>
+      </div>
+    </div>
+
+    <!-- Welcome back bar (shown after entry) -->
+    <div id="welcomeBack" style="display:none;"></div>
+
+    <!-- Bracket -->
+    <div class="bracket-wrap">
+      <div class="bracket" id="bracket"></div>
+    </div>
+
+    <!-- Progress strip -->
+    <div class="progress-strip" id="progressStrip" style="display:none;"></div>
+
+    <!-- All entries list (private admin view) -->
+    <div class="card" id="savedSection" style="display:none;">
+      <h2>All entries</h2>
+      <div id="entryList"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
