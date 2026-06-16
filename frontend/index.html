@@ -1,40 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>World Cup Bracket Predictor</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>2026 World Cup Predictor</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-
 <header class="site-header">
   <div class="header-inner">
-    <div class="header-title">
-      <div class="ball-icon">⚽</div>
+    <div class="header-left">
+      <div class="ball">⚽</div>
       <div>
-        <h1>World Cup Predictor</h1>
+        <h1>2026 World Cup Predictor</h1>
         <p>Pick your bracket — see who called it right</p>
       </div>
     </div>
     <div class="status-pill locked" id="statusPill">
-      <div class="status-dot"></div>
+      <div class="sdot"></div>
       <span id="statusLabel">Bracket locked</span>
     </div>
   </div>
-  <div style="background: rgba(0,0,0,0.15);">
-    <div class="nav-tabs">
-      <div class="nav-tab active" onclick="showTab('bracket')">Bracket</div>
-      <div class="nav-tab" onclick="showTab('entries')" id="entriesTab">Entries</div>
+  <div style="background:rgba(0,0,0,0.18);">
+    <div class="nav">
+      <div class="ntab active" onclick="showTab('bracket',this)">Bracket</div>
+      <div class="ntab" onclick="showTab('entries',this)">Entries</div>
     </div>
   </div>
 </header>
 
 <div class="app">
-
   <div class="admin-bar" id="adminBar">
-    <div class="admin-bar-label">⚙ Admin controls</div>
-    <div class="admin-actions">
+    <div class="admin-bar-title">⚙ Admin controls</div>
+    <div class="admin-acts">
       <button class="btn btn-gold" onclick="unlockBracket()">Unlock bracket</button>
       <button class="btn" onclick="lockBracket()">Lock bracket</button>
       <button class="btn btn-danger" onclick="resetCurrentPicks()">Reset my picks</button>
@@ -42,47 +40,36 @@
   </div>
 
   <div class="panel active" id="panel-bracket">
-
     <div class="card" id="entrySection">
-      <div class="card-title">Your details</div>
+      <div class="card-label">Your details</div>
       <div class="form-grid">
-        <div class="field">
-          <label for="inp-name">Name</label>
-          <input type="text" id="inp-name" placeholder="Your name" />
-        </div>
-        <div class="field">
-          <label for="inp-email">Email</label>
-          <input type="email" id="inp-email" placeholder="you@example.com" />
-        </div>
+        <div class="field"><label for="inp-name">Name</label><input type="text" id="inp-name" placeholder="Your name"/></div>
+        <div class="field"><label for="inp-email">Email</label><input type="email" id="inp-email" placeholder="you@example.com"/></div>
       </div>
-      <p class="hint">Your email identifies your entry — it won't be shared or displayed publicly.</p>
+      <p class="hint">Your email identifies your entry — not shared or displayed publicly.</p>
       <div class="form-actions">
         <button class="btn btn-primary" onclick="registerEntry()">Save my details →</button>
-        <span class="form-msg" id="entryMsg"></span>
+        <span class="fmsg" id="entryMsg"></span>
       </div>
     </div>
 
     <div id="welcomeBack" style="display:none;"></div>
-
-    <div class="progress-bar" id="progressBar" style="display:none;"></div>
+    <div class="prog-strip" id="progStrip" style="display:none;"></div>
 
     <div class="card">
-      <div class="bracket-scroll">
-        <div class="bracket" id="bracket"></div>
+      <div class="bracket-wrap">
+        <div class="bracket-outer" id="bracketOuter"></div>
       </div>
     </div>
-
   </div>
 
   <div class="panel" id="panel-entries">
     <div class="card">
-      <div class="card-title">All entries</div>
+      <div class="card-label">All entries</div>
       <div id="entryList"></div>
     </div>
   </div>
-
 </div>
-
 <script src="app.js"></script>
 </body>
 </html>
