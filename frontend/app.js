@@ -324,11 +324,19 @@ async function resetPicks(){
 (async function init(){
   const admin=new URLSearchParams(location.search).get('admin')==='1';
   if(admin)document.getElementById('abar').classList.add('on');
+
+  /* always load demo teams so bracket is visible */
+  teams=DEMO.map(t=>({n:t.n,f:t.f}));
+  locked=false;
+
+  /* try to get real state from server */
   const st=await api('/bracket-state');
   if(st){
     locked=st.locked;
     if(!locked&&st.teams?.length)teams=st.teams.map(t=>({n:t.name||t.n,f:t.flag||t.f}));
+    else teams=DEMO.map(t=>({n:t.n,f:t.f}));
   }
+
   setStatus(locked);
   await loadE();
   initR();render();
