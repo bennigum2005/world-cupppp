@@ -1,14 +1,14 @@
 {
   "name": "worldcup-bracket",
   "version": "1.0.0",
-  "description": "World Cup bracket predictor — no logins, just name + email",
+  "description": "World Cup bracket predictor",
   "main": "backend/server.js",
   "scripts": {
-    "start": "node backend/server.js",
-    "dev": "npx nodemon backend/server.js"
+    "start": "node backend/server.js"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   },
   "dependencies": {
     "cors": "^2.8.5",
