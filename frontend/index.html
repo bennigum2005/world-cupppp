@@ -9,31 +9,33 @@
 <body>
 <header class="site-header">
   <div class="header-inner">
-    <div class="header-left">
-      <div class="ball">⚽</div>
+    <div class="logo">
+      <div class="logo-icon">⚽</div>
       <div>
         <h1>2026 World Cup Predictor</h1>
         <p>Pick your bracket — see who called it right</p>
       </div>
     </div>
-    <div class="status-pill locked" id="statusPill">
-      <div class="sdot"></div>
-      <span id="statusLabel">Bracket locked</span>
-    </div>
-  </div>
-  <div style="background:rgba(0,0,0,0.18);">
-    <div class="nav">
-      <div class="ntab active" onclick="showTab('bracket',this)">Bracket</div>
-      <div class="ntab" onclick="showTab('entries',this)">Entries</div>
+    <div class="header-right">
+      <div class="status-badge locked" id="statusBadge">
+        <div class="sdot"></div>
+        <span id="statusLabel">Bracket locked</span>
+      </div>
     </div>
   </div>
 </header>
+<div class="nav">
+  <div class="nav-inner">
+    <div class="ntab active" onclick="showTab('bracket',this)">Bracket</div>
+    <div class="ntab" onclick="showTab('entries',this)">Entries</div>
+  </div>
+</div>
 
 <div class="app">
   <div class="admin-bar" id="adminBar">
-    <div class="admin-bar-title">⚙ Admin controls</div>
+    <div class="admin-lbl">⚙ Admin controls</div>
     <div class="admin-acts">
-      <button class="btn btn-gold" onclick="unlockBracket()">Unlock bracket</button>
+      <button class="btn btn-primary" onclick="unlockBracket()">Unlock bracket</button>
       <button class="btn" onclick="lockBracket()">Lock bracket</button>
       <button class="btn btn-danger" onclick="resetCurrentPicks()">Reset my picks</button>
     </div>
@@ -52,14 +54,10 @@
         <span class="fmsg" id="entryMsg"></span>
       </div>
     </div>
-
     <div id="welcomeBack" style="display:none;"></div>
     <div class="prog-strip" id="progStrip" style="display:none;"></div>
-
-    <div class="card">
-      <div class="bracket-wrap">
-        <div class="bracket-outer" id="bracketOuter"></div>
-      </div>
+    <div class="bracket-section">
+      <div class="bracket-outer" id="bracketOuter"></div>
     </div>
   </div>
 
