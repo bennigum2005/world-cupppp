@@ -7,64 +7,55 @@
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-<header class="site-header">
-  <div class="header-inner">
-    <div class="logo">
-      <div class="logo-icon">⚽</div>
-      <div>
-        <h1>2026 World Cup Predictor</h1>
-        <p>Pick your bracket — see who called it right</p>
-      </div>
+<header class="hdr">
+  <div class="logo">
+    <div class="logo-ball">⚽</div>
+    <div>
+      <h1>2026 World Cup Predictor</h1>
+      <p>Pick your bracket — see who called it right</p>
     </div>
-    <div class="header-right">
-      <div class="status-badge locked" id="statusBadge">
-        <div class="sdot"></div>
-        <span id="statusLabel">Bracket locked</span>
-      </div>
-    </div>
+  </div>
+  <div class="sbadge locked" id="sbadge">
+    <div class="sdot"></div>
+    <span id="slabel">Bracket locked</span>
   </div>
 </header>
-<div class="nav">
-  <div class="nav-inner">
-    <div class="ntab active" onclick="showTab('bracket',this)">Bracket</div>
-    <div class="ntab" onclick="showTab('entries',this)">Entries</div>
-  </div>
-</div>
-
+<nav class="nav">
+  <div class="ntab active" onclick="showTab('bracket',this)">Bracket</div>
+  <div class="ntab" onclick="showTab('entries',this)">Entries</div>
+</nav>
 <div class="app">
-  <div class="admin-bar" id="adminBar">
-    <div class="admin-lbl">⚙ Admin controls</div>
-    <div class="admin-acts">
-      <button class="btn btn-primary" onclick="unlockBracket()">Unlock bracket</button>
+  <div class="abar" id="abar">
+    <div class="albl">⚙ Admin controls</div>
+    <div class="aacts">
+      <button class="btn btn-p" onclick="unlockBracket()">Unlock bracket</button>
       <button class="btn" onclick="lockBracket()">Lock bracket</button>
-      <button class="btn btn-danger" onclick="resetCurrentPicks()">Reset my picks</button>
+      <button class="btn btn-d" onclick="resetPicks()">Reset my picks</button>
     </div>
   </div>
-
   <div class="panel active" id="panel-bracket">
     <div class="card" id="entrySection">
-      <div class="card-label">Your details</div>
-      <div class="form-grid">
-        <div class="field"><label for="inp-name">Name</label><input type="text" id="inp-name" placeholder="Your name"/></div>
-        <div class="field"><label for="inp-email">Email</label><input type="email" id="inp-email" placeholder="you@example.com"/></div>
+      <div class="clabel">Your details</div>
+      <div class="fgrid">
+        <div class="field"><label for="iname">Name</label><input type="text" id="iname" placeholder="Your name"/></div>
+        <div class="field"><label for="iemail">Email</label><input type="email" id="iemail" placeholder="you@example.com"/></div>
       </div>
-      <p class="hint">Your email identifies your entry — not shared or displayed publicly.</p>
-      <div class="form-actions">
-        <button class="btn btn-primary" onclick="registerEntry()">Save my details →</button>
-        <span class="fmsg" id="entryMsg"></span>
+      <p class="hint">Your email identifies your entry and won't be shared.</p>
+      <div class="factions">
+        <button class="btn btn-p" onclick="registerEntry()">Save my details →</button>
+        <span class="fmsg" id="fmsg"></span>
       </div>
     </div>
-    <div id="welcomeBack" style="display:none;"></div>
-    <div class="prog-strip" id="progStrip" style="display:none;"></div>
-    <div class="bracket-section">
-      <div class="bracket-outer" id="bracketOuter"></div>
+    <div id="wbar" style="display:none;"></div>
+    <div class="pstrip" id="pstrip" style="display:none;"></div>
+    <div class="bsection">
+      <div class="bouter" id="bouter"></div>
     </div>
   </div>
-
   <div class="panel" id="panel-entries">
     <div class="card">
-      <div class="card-label">All entries</div>
-      <div id="entryList"></div>
+      <div class="clabel">All entries</div>
+      <div id="elist"></div>
     </div>
   </div>
 </div>
