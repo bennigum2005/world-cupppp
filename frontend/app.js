@@ -62,8 +62,12 @@ function prop(){
   if(f.w&&(!f.t1||f.w.n!==f.t1.n)&&(!f.t2||f.w.n!==f.t2.n))f.w=null;
 }
 
+let adminPass=sessionStorage.getItem('adminPass')||null;
+
 async function api(path,o={}){
-  try{const r=await fetch(API+path,{headers:{'Content-Type':'application/json'},...o});if(!r.ok)throw 0;return r.json();}
+  const headers={'Content-Type':'application/json'};
+  if(adminPass)headers['x-admin-pass']=adminPass;
+  try{const r=await fetch(API+path,{headers,...o});if(!r.ok)throw 0;return r.json();}
   catch{return null;}
 }
 
@@ -272,15 +276,14 @@ function switchUser(){
   showW();render();
 }
 
-function renderEntries(){
+function showEntriesTable(){
   const list=document.getElementById('elist');
-  const admin=new URLSearchParams(location.search).get('admin')==='1';
-  if(!admin){list.innerHTML='<div class="empty">Entry list is private.</div>';return;}
   if(!entries.length){list.innerHTML='<div class="empty">No entries yet.</div>';return;}
   const rows=entries.map(e=>{
     const p=Object.keys(e.picks||{}).length;
     const pct=Math.round((p/31)*100);
     const init=e.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const saved=e.lastSaved?new Date(e.lastSaved).toLocaleDateString():'—';
     return `<tr>
       <td><div style="display:flex;align-items:center;gap:9px;">
         <div class="av" style="width:28px;height:28px;font-size:10px;">${init}</div>
@@ -293,9 +296,45 @@ function renderEntries(){
         </div>
         <span class="bdg ${p===31?'bg':p>0?'bgg':'bd'}">${p}/31</span>
       </div></td>
+      <td style="color:var(--t3);font-size:11px;">${saved}</td>
     </tr>`;
   }).join('');
-  list.innerHTML=`<table class="etbl"><thead><tr><th>Player</th><th>Champion pick</th><th>Progress</th></tr></thead><tbody>${rows}</tbody></table>`;
+  list.innerHTML=`<table class="etbl"><thead><tr><th>Player</th><th>Champion pick</th><th>Progress</th><th>Last saved</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderEntries(){
+  const list=document.getElementById('elist');
+  if(adminPass){
+    showEntriesTable();
+    return;
+  }
+  /* show login form */
+  list.innerHTML=`
+    <div style="max-width:320px;margin:0 auto;padding:1.5rem 0;">
+      <p style="font-size:13px;color:var(--t2);margin-bottom:1rem;">Admin access only. Enter your password to view all entries.</p>
+      <div class="field" style="margin-bottom:10px;">
+        <label for="apass">Admin password</label>
+        <input type="password" id="apass" placeholder="Password" onkeydown="if(event.key==='Enter')adminLogin()"/>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+        <button class="btn btn-p" onclick="adminLogin()">Login →</button>
+        <span class="fmsg err" id="loginErr" style="display:none;">Wrong password</span>
+      </div>
+    </div>`;
+}
+
+async function adminLogin(){
+  const pass=document.getElementById('apass')?.value||'';
+  const err=document.getElementById('loginErr');
+  const d=await api('/admin/verify',{method:'POST',body:JSON.stringify({pass})});
+  if(d?.ok){
+    adminPass=pass;
+    sessionStorage.setItem('adminPass',pass);
+    await loadE();
+    showEntriesTable();
+  } else {
+    if(err){err.style.display='inline';setTimeout(()=>err.style.display='none',3000);}
+  }
 }
 
 function setStatus(l){
@@ -311,7 +350,7 @@ async function unlockBracket(){
   initR();setStatus(false);render();
 }
 async function lockBracket(){
-  locked=true;teams=PH.map(t=>({...t}));
+  locked=true;teams=DEMO.map(t=>({n:t.n,f:t.f}));
   await api('/bracket-state',{method:'PUT',body:JSON.stringify({locked:true,teams:[]})});
   initR();setStatus(true);render();
 }
@@ -320,16 +359,21 @@ async function resetPicks(){
   await api(`/entries/${encodeURIComponent(user.email)}/picks`,{method:'PUT',body:JSON.stringify({picks:{},champion:null})});
   initR();render();
 }
+function adminLogout(){
+  adminPass=null;sessionStorage.removeItem('adminPass');
+  document.getElementById('abar').classList.remove('on');
+  renderEntries();
+}
 
 (async function init(){
-  const admin=new URLSearchParams(location.search).get('admin')==='1';
-  if(admin)document.getElementById('abar').classList.add('on');
+  /* show admin bar if password already in session */
+  if(adminPass)document.getElementById('abar').classList.add('on');
 
-  /* always load demo teams so bracket is visible */
+  /* always load demo teams so bracket is visible immediately */
   teams=DEMO.map(t=>({n:t.n,f:t.f}));
   locked=false;
 
-  /* try to get real state from server */
+  /* get real bracket state from server */
   const st=await api('/bracket-state');
   if(st){
     locked=st.locked;
