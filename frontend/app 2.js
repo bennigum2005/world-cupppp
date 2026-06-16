@@ -33,33 +33,50 @@ function mk(id,t1,t2,s1,s2){return{id,t1:t1||null,t2:t2||null,w:null,s1:s1||null
 
 function initR(){
   const T=teams;
+  /* LEFT: R16(8) → QF(4) → SF(2) → Final
+     l0m0..7 = R16, l1m0..3 = QF, l2m0..1 = SF
+     l2m0 winner = left finalist (from l1m0 vs l1m1)
+     l2m1 winner = NOT USED — the two SF winners play each other
+     Wait — correct bracket: 8 R16 → 4 QF → 2 SF → 1 finalist
+     So: l2m0 feeds from l1m0 vs l1m1, l2m1 feeds from l1m2 vs l1m3
+     Final t1 = l2m0 winner vs l2m1 winner  ← THIS was missing! */
   const lR=Array.from({length:8},(_,i)=>mk(`l0m${i}`,T[i*2],T[i*2+1]));
   const lQ=Array.from({length:4},(_,i)=>mk(`l1m${i}`,null,null,`l0m${i*2}`,`l0m${i*2+1}`));
   const lS=Array.from({length:2},(_,i)=>mk(`l2m${i}`,null,null,`l1m${i*2}`,`l1m${i*2+1}`));
+  /* Left final match: the two left SF winners */
+  const lF=[mk('lf',null,null,'l2m0','l2m1')];
+
+  /* RIGHT: same mirror structure */
   const rR=Array.from({length:8},(_,i)=>mk(`r0m${i}`,T[16+i*2],T[16+i*2+1]));
   const rQ=Array.from({length:4},(_,i)=>mk(`r1m${i}`,null,null,`r0m${i*2}`,`r0m${i*2+1}`));
   const rS=Array.from({length:2},(_,i)=>mk(`r2m${i}`,null,null,`r1m${i*2}`,`r1m${i*2+1}`));
-  const fin=[mk('final',null,null,'l2m0','r2m0')];
-  R=[lR,lQ,lS,fin,rS,rQ,rR];
+  /* Right final match: the two right SF winners */
+  const rF=[mk('rf',null,null,'r2m0','r2m1')];
+
+  /* THE FINAL: left finalist vs right finalist */
+  const fin=[mk('final',null,null,'lf','rf')];
+
+  /* rounds layout:
+     [0] left R16(8)  [1] left QF(4)  [2] left SF(2)  [3] left finalist(1)
+     [4] FINAL(1)
+     [5] right finalist(1)  [6] right SF(2)  [7] right QF(4)  [8] right R16(8) */
+  R=[lR,lQ,lS,lF,fin,rF,rS,rQ,rR];
 }
 
 function gm(id){for(const r of R)for(const m of r)if(m.id===id)return m;return null;}
 
+function propM(m){
+  m.t1=gm(m.s1)?.w||null; m.t2=gm(m.s2)?.w||null;
+  if(m.w&&(!m.t1||m.w.n!==m.t1.n)&&(!m.t2||m.w.n!==m.t2.n))m.w=null;
+}
+
 function prop(){
-  /* left: QF, SF */
-  for(let r=1;r<=2;r++)for(const m of R[r]){
-    m.t1=gm(m.s1)?.w||null; m.t2=gm(m.s2)?.w||null;
-    if(m.w&&(!m.t1||m.w.n!==m.t1.n)&&(!m.t2||m.w.n!==m.t2.n))m.w=null;
-  }
-  /* right: SF, QF */
-  for(let r=4;r<=5;r++)for(const m of R[r]){
-    m.t1=gm(m.s1)?.w||null; m.t2=gm(m.s2)?.w||null;
-    if(m.w&&(!m.t1||m.w.n!==m.t1.n)&&(!m.t2||m.w.n!==m.t2.n))m.w=null;
-  }
-  /* final */
-  const f=R[3][0];
-  f.t1=gm('l2m0')?.w||null; f.t2=gm('r2m0')?.w||null;
-  if(f.w&&(!f.t1||f.w.n!==f.t1.n)&&(!f.t2||f.w.n!==f.t2.n))f.w=null;
+  /* left side: QF[1], SF[2], left finalist[3] */
+  for(let r=1;r<=3;r++) for(const m of R[r]) propM(m);
+  /* right side: right finalist[5], SF[6], QF[7] */
+  for(let r=5;r<=7;r++) for(const m of R[r]) propM(m);
+  /* final[4] */
+  propM(R[4][0]);
 }
 
 let adminPass=sessionStorage.getItem('adminPass')||null;
@@ -156,7 +173,7 @@ function buildCol(matches,label,isRightHalf){
 }
 
 function buildFinal(can){
-  const f=R[3][0];const {t1,t2,w}=f;
+  const f=R[4][0];const {t1,t2,w}=f;
   const card=document.createElement('div');
   card.className='fin-card'+(!can?' mlocked':'');
 
@@ -193,23 +210,25 @@ function render(){
   const outer=document.getElementById('bouter');outer.innerHTML='';
   const can=!locked&&!!user;
 
-  /* LEFT: R16 outermost → SF innermost (toward centre) */
+  /* LEFT: R16[0] → QF[1] → SF[2] → left finalist[3] — all flow toward centre */
   const left=document.createElement('div');left.className='half hleft';
   left.appendChild(buildCol(R[0],'Round of 16'));
   left.appendChild(buildCol(R[1],'Quarter-finals'));
   left.appendChild(buildCol(R[2],'Semi-finals'));
+  left.appendChild(buildCol(R[3],'Finalist'));
   outer.appendChild(left);
 
-  /* CENTRE */
+  /* CENTRE: The Final */
   const cc=document.createElement('div');cc.className='ccol';
   cc.appendChild(buildFinal(can));
   outer.appendChild(cc);
 
-  /* RIGHT: SF innermost (toward centre) → R16 outermost */
+  /* RIGHT: right finalist[5] → SF[6] → QF[7] → R16[8] — mirror toward centre */
   const right=document.createElement('div');right.className='half hright';
-  right.appendChild(buildCol(R[4],'Semi-finals',true));
-  right.appendChild(buildCol(R[5],'Quarter-finals',true));
-  right.appendChild(buildCol(R[6],'Round of 16',true));
+  right.appendChild(buildCol(R[5],'Finalist',true));
+  right.appendChild(buildCol(R[6],'Semi-finals',true));
+  right.appendChild(buildCol(R[7],'Quarter-finals',true));
+  right.appendChild(buildCol(R[8],'Round of 16',true));
   outer.appendChild(right);
 
   renderProg();
@@ -220,7 +239,7 @@ function renderProg(){
   if(!user||locked){s.style.display='none';return;}
   s.style.display='flex';
   let made=0;for(const r of R)for(const m of r)if(m.w)made++;
-  const champ=R[3][0].w;
+  const champ=R[4][0].w;
   s.innerHTML=`
     <div class="pi"><div class="plbl">Picks made</div><div class="pval">${made}/31</div></div>
     <div class="pi"><div class="plbl">Remaining</div><div class="pval">${31-made}</div></div>
@@ -253,7 +272,7 @@ async function loadE(){const d=await api('/entries');if(d)entries=d;}
 async function saveP(){
   if(!user)return;
   const picks={};for(const r of R)for(const m of r)if(m.w)picks[m.id]=m.w;
-  const champion=R[3][0].w||null;
+  const champion=R[4][0].w||null;
   await api(`/entries/${encodeURIComponent(user.email)}/picks`,{method:'PUT',body:JSON.stringify({picks,champion})});
   const i=entries.findIndex(e=>e.email===user.email);
   if(i>=0){entries[i].picks=picks;entries[i].champion=champion;}
