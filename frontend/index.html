@@ -7,31 +7,45 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="app">
-    <div class="hdr">
-      <h1>⚽ World Cup Bracket Predictor</h1>
-      <p>Enter your details, then pick your winners once the playoff bracket is confirmed.</p>
-    </div>
 
-    <div class="status-bar" id="statusBar">
-      <div class="dot dot-red" id="statusDot"></div>
-      <span id="statusText"><strong>Bracket locked</strong> — playoff teams are not confirmed yet.</span>
-    </div>
-
-    <!-- Admin panel (hidden by default, toggle with ?admin=1 in URL) -->
-    <div class="admin-panel" id="adminPanel" style="display:none;">
-      <p class="admin-label">⚙ Admin controls</p>
-      <div class="admin-actions">
-        <button class="btn btn-primary" onclick="unlockBracket()">Unlock bracket (set demo teams)</button>
-        <button class="btn" onclick="lockBracket()">Lock bracket</button>
-        <button class="btn btn-danger" onclick="resetCurrentPicks()">Reset my picks</button>
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-title">
+      <div class="ball-icon">⚽</div>
+      <div>
+        <h1>World Cup Predictor</h1>
+        <p>Pick your bracket — see who called it right</p>
       </div>
     </div>
+    <div class="status-pill locked" id="statusPill">
+      <div class="status-dot"></div>
+      <span id="statusLabel">Bracket locked</span>
+    </div>
+  </div>
+  <div style="background: rgba(0,0,0,0.15);">
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="showTab('bracket')">Bracket</div>
+      <div class="nav-tab" onclick="showTab('entries')" id="entriesTab">Entries</div>
+    </div>
+  </div>
+</header>
 
-    <!-- Entry form -->
+<div class="app">
+
+  <div class="admin-bar" id="adminBar">
+    <div class="admin-bar-label">⚙ Admin controls</div>
+    <div class="admin-actions">
+      <button class="btn btn-gold" onclick="unlockBracket()">Unlock bracket</button>
+      <button class="btn" onclick="lockBracket()">Lock bracket</button>
+      <button class="btn btn-danger" onclick="resetCurrentPicks()">Reset my picks</button>
+    </div>
+  </div>
+
+  <div class="panel active" id="panel-bracket">
+
     <div class="card" id="entrySection">
-      <h2>Your details</h2>
-      <div class="form-row">
+      <div class="card-title">Your details</div>
+      <div class="form-grid">
         <div class="field">
           <label for="inp-name">Name</label>
           <input type="text" id="inp-name" placeholder="Your name" />
@@ -41,31 +55,34 @@
           <input type="email" id="inp-email" placeholder="you@example.com" />
         </div>
       </div>
-      <p class="hint">Your email is only used to identify your entry — it won't be shared.</p>
+      <p class="hint">Your email identifies your entry — it won't be shared or displayed publicly.</p>
       <div class="form-actions">
         <button class="btn btn-primary" onclick="registerEntry()">Save my details →</button>
         <span class="form-msg" id="entryMsg"></span>
       </div>
     </div>
 
-    <!-- Welcome back bar (shown after entry) -->
     <div id="welcomeBack" style="display:none;"></div>
 
-    <!-- Bracket -->
-    <div class="bracket-wrap">
-      <div class="bracket" id="bracket"></div>
+    <div class="progress-bar" id="progressBar" style="display:none;"></div>
+
+    <div class="card">
+      <div class="bracket-scroll">
+        <div class="bracket" id="bracket"></div>
+      </div>
     </div>
 
-    <!-- Progress strip -->
-    <div class="progress-strip" id="progressStrip" style="display:none;"></div>
+  </div>
 
-    <!-- All entries list (private admin view) -->
-    <div class="card" id="savedSection" style="display:none;">
-      <h2>All entries</h2>
+  <div class="panel" id="panel-entries">
+    <div class="card">
+      <div class="card-title">All entries</div>
       <div id="entryList"></div>
     </div>
   </div>
 
-  <script src="app.js"></script>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
