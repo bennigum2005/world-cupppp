@@ -493,13 +493,15 @@ function setMsg(el, t, type) { el.textContent = t; el.className = 'fmsg ' + type
   setStatus(false);
   render(); // render immediately with demo teams
 
-  // then sync with server
+  // sync with server — always use server teams if available, ignore locked state
   const st = await api('/bracket-state');
   if (st) {
-    locked = !!st.locked;
-    if (!locked && st.teams && st.teams.length === 32) {
+    // use server teams if we have 32 of them
+    if (st.teams && st.teams.length === 32) {
       teams = st.teams.map(t => ({ n: t.name || t.n, f: t.flag || t.f }));
     }
+    // only lock if admin explicitly locked it
+    locked = !!st.locked;
     initMatches();
     setStatus(locked);
     render();

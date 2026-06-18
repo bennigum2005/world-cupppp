@@ -16,10 +16,34 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(FRONTEND));
 
+const DEMO_TEAMS = [
+  {name:'Germany',flag:'🇩🇪'},{name:'Scotland',flag:'🏴󠁧󠁢󠁳󠁣󠁴󠁿'},
+  {name:'France',flag:'🇫🇷'},{name:'Egypt',flag:'🇪🇬'},
+  {name:'Netherlands',flag:'🇳🇱'},{name:'Morocco',flag:'🇲🇦'},
+  {name:'Spain',flag:'🇪🇸'},{name:'Austria',flag:'🇦🇹'},
+  {name:'USA',flag:'🇺🇸'},{name:'Bosnia',flag:'🇧🇦'},
+  {name:'Belgium',flag:'🇧🇪'},{name:'S. Korea',flag:'🇰🇷'},
+  {name:'Colombia',flag:'🇨🇴'},{name:'Croatia',flag:'🇭🇷'},
+  {name:'Canada',flag:'🇨🇦'},{name:'Ivory Coast',flag:'🇨🇮'},
+  {name:'Brazil',flag:'🇧🇷'},{name:'Japan',flag:'🇯🇵'},
+  {name:'England',flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},{name:'Senegal',flag:'🇸🇳'},
+  {name:'Argentina',flag:'🇦🇷'},{name:'Ecuador',flag:'🇪🇨'},
+  {name:'Portugal',flag:'🇵🇹'},{name:'Turkey',flag:'🇹🇷'},
+  {name:'Mexico',flag:'🇲🇽'},{name:'Sweden',flag:'🇸🇪'},
+  {name:'Australia',flag:'🇦🇺'},{name:'Norway',flag:'🇳🇴'},
+  {name:'Switzerland',flag:'🇨🇭'},{name:'Algeria',flag:'🇩🇿'},
+  {name:'Uruguay',flag:'🇺🇾'},{name:'Iran',flag:'🇮🇷'},
+];
+
 function readDB() {
   if (!fs.existsSync(DB))
-    fs.writeFileSync(DB, JSON.stringify({ bracketState: { locked: false, teams: [] }, entries: [] }, null, 2));
-  return JSON.parse(fs.readFileSync(DB, 'utf8'));
+    fs.writeFileSync(DB, JSON.stringify({ bracketState: { locked: false, teams: DEMO_TEAMS }, entries: [] }, null, 2));
+  const data = JSON.parse(fs.readFileSync(DB, 'utf8'));
+  // Always ensure teams are populated
+  if (!data.bracketState.teams || data.bracketState.teams.length < 32) {
+    data.bracketState.teams = DEMO_TEAMS;
+  }
+  return data;
 }
 function writeDB(data) {
   fs.writeFileSync(DB, JSON.stringify(data, null, 2));
@@ -80,6 +104,15 @@ app.post('/api/admin/verify', (req, res) => {
   const { pass } = req.body;
   if (pass === ADMIN_PASS) res.json({ ok: true });
   else res.status(401).json({ error: 'Wrong password' });
+});
+
+/* One-time fix: reset bracket state to unlocked with demo teams */
+app.get('/api/reset-bracket', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const db = readDB();
+  db.bracketState = { locked: false, teams: DEMO_TEAMS };
+  writeDB(db);
+  res.json({ ok: true, message: 'Bracket reset to unlocked with demo teams' });
 });
 
 app.get('*', (req, res) => {
