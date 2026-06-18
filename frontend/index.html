@@ -17,23 +17,31 @@
   </div>
   <div class="sbadge locked" id="sbadge">
     <div class="sdot"></div>
-    <span id="slabel">Bracket locked</span>
+    <span id="slabel">Picks open</span>
   </div>
 </header>
 <nav class="nav">
   <div class="ntab active" onclick="showTab('bracket',this)">Bracket</div>
+  <div class="ntab" onclick="showTab('tracker',this)">Perfect Bracket 🔥</div>
   <div class="ntab" onclick="showTab('entries',this)">Entries</div>
 </nav>
 <div class="app">
+
+  <!-- ADMIN BAR -->
   <div class="abar" id="abar">
     <div class="albl">⚙ Admin controls</div>
     <div class="aacts">
-      <button class="btn btn-p" onclick="unlockBracket()">Unlock bracket</button>
+      <button class="btn btn-p" onclick="startTournament()">🚀 Start tournament</button>
+      <button class="btn" onclick="stopTournament()">Reopen picks</button>
+      <button class="btn" onclick="unlockBracket()">Unlock bracket</button>
       <button class="btn" onclick="lockBracket()">Lock bracket</button>
+      <button class="btn" onclick="syncResults()">↻ Sync results</button>
       <button class="btn btn-d" onclick="resetPicks()">Reset my picks</button>
       <button class="btn" onclick="adminLogout()" style="margin-left:auto;">Log out</button>
     </div>
   </div>
+
+  <!-- BRACKET TAB -->
   <div class="panel active" id="panel-bracket">
     <div class="card" id="entrySection">
       <div class="clabel">Your details</div>
@@ -53,12 +61,24 @@
       <div class="bouter" id="bouter"></div>
     </div>
   </div>
+
+  <!-- PERFECT BRACKET TRACKER TAB -->
+  <div class="panel" id="panel-tracker">
+    <div class="card">
+      <div class="clabel">Perfect Bracket Tracker</div>
+      <p style="font-size:13px;color:var(--t2);margin-bottom:1rem;">See who still has a perfect bracket after each round. Updates automatically as real results come in.</p>
+      <div id="tracker-content"><div class="empty">No results yet — check back once matches start.</div></div>
+    </div>
+  </div>
+
+  <!-- ENTRIES TAB -->
   <div class="panel" id="panel-entries">
     <div class="card">
       <div class="clabel">All entries</div>
       <div id="elist"></div>
     </div>
   </div>
+
 </div>
 <script src="app.js"></script>
 </body>

@@ -165,3 +165,32 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,Blink
 .bd{background:var(--s2);color:var(--t3);}
 .empty{text-align:center;padding:3rem;color:var(--t3);}
 @media(max-width:640px){.fgrid{grid-template-columns:1fr;}.hdr{flex-wrap:wrap;gap:8px;}.app{padding:1rem;}}
+
+/* ── TOURNAMENT LIVE status ── */
+.sbadge.live { background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.3); color:#f87171; }
+.live .sdot  { background:#f87171; box-shadow:0 0 8px #ef4444; }
+
+/* ── WINNER ROW COLOURS ── */
+.winner-row.correct { color:var(--green); }
+.winner-row.wrong   { color:var(--red); }
+
+/* ── PERFECT BRACKET TRACKER ── */
+.tracker-round { margin-bottom:1.5rem; }
+.tracker-round-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 0; border-bottom:1px solid var(--b1); margin-bottom:10px;
+}
+.tracker-round-label { font-size:12px; font-weight:700; color:var(--text); }
+.tracker-round-count { font-size:11px; color:var(--t2); }
+.tracker-players { display:flex; flex-wrap:wrap; gap:8px; }
+.tracker-player {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 12px; border-radius:8px; border:1px solid var(--b1);
+  min-width:160px;
+}
+.tp-alive { background:rgba(201,168,76,.06); border-color:rgba(201,168,76,.2); }
+.tp-out   { background:var(--s1); opacity:.45; }
+.tp-name  { font-size:12px; font-weight:500; color:var(--text); flex:1; }
+.tp-status{ font-size:10px; font-weight:600; }
+.tp-alive .tp-status { color:var(--gold); }
+.tp-out   .tp-status { color:var(--t3); }
