@@ -1,7 +1,5 @@
 const API='/api';
 
-/* 32 demo teams. Indices 0–15 = LEFT half (top→bottom), 16–31 = RIGHT half (top→bottom).
-   Each adjacent pair = one R16 match. */
 const DEMO=[
   {n:'Germany',f:'🇩🇪'},{n:'Scotland',f:'🏴󠁧󠁢󠁳󠁣󠁴󠁿'},
   {n:'France',f:'🇫🇷'},{n:'Egypt',f:'🇪🇬'},
@@ -20,71 +18,79 @@ const DEMO=[
   {n:'Switzerland',f:'🇨🇭'},{n:'Algeria',f:'🇩🇿'},
   {n:'Uruguay',f:'🇺🇾'},{n:'Iran',f:'🇮🇷'},
 ];
+
 const PH=Array.from({length:32},(_,i)=>({n:`Team ${i+1}`,f:'🏳'}));
-
 let locked=true,user=null,entries=[],teams=PH.map(t=>({...t}));
+let adminPass=sessionStorage.getItem('adminPass')||null;
 
-/* rounds[0]=left R16(8), [1]=left QF(4), [2]=left SF(2),
-   [3]=final(1),
-   [4]=right SF(2), [5]=right QF(4), [6]=right R16(8) */
+/*
+  BRACKET STRUCTURE — two-sided, both halves flow INWARD to the centre.
+
+  Left half  (teams 0–15):  R16(8) → QF(4) → SF(2) → SF-Final(1) ─┐
+                                                                      ├─ FINAL
+  Right half (teams 16–31): R16(8) → QF(4) → SF(2) → SF-Final(1) ─┘
+
+  Each half has 4 columns. The SF-Final column has ONE match where
+  the 2 SF winners play to produce ONE finalist.
+
+  Round indices in R[]:
+    [0] Left R16      — 8 matches
+    [1] Left QF       — 4 matches
+    [2] Left SF       — 2 matches
+    [3] Left SF-Final — 1 match  (winner = left finalist)
+    [4] FINAL         — 1 match
+    [5] Right SF-Final— 1 match  (winner = right finalist)
+    [6] Right SF      — 2 matches
+    [7] Right QF      — 4 matches
+    [8] Right R16     — 8 matches
+*/
+
 let R=[];
-
 function mk(id,t1,t2,s1,s2){return{id,t1:t1||null,t2:t2||null,w:null,s1:s1||null,s2:s2||null};}
 
 function initR(){
   const T=teams;
-  /* LEFT: R16(8) → QF(4) → SF(2) → Final
-     l0m0..7 = R16, l1m0..3 = QF, l2m0..1 = SF
-     l2m0 winner = left finalist (from l1m0 vs l1m1)
-     l2m1 winner = NOT USED — the two SF winners play each other
-     Wait — correct bracket: 8 R16 → 4 QF → 2 SF → 1 finalist
-     So: l2m0 feeds from l1m0 vs l1m1, l2m1 feeds from l1m2 vs l1m3
-     Final t1 = l2m0 winner vs l2m1 winner  ← THIS was missing! */
   const lR=Array.from({length:8},(_,i)=>mk(`l0m${i}`,T[i*2],T[i*2+1]));
   const lQ=Array.from({length:4},(_,i)=>mk(`l1m${i}`,null,null,`l0m${i*2}`,`l0m${i*2+1}`));
   const lS=Array.from({length:2},(_,i)=>mk(`l2m${i}`,null,null,`l1m${i*2}`,`l1m${i*2+1}`));
-  /* Left final match: the two left SF winners */
-  const lF=[mk('lf',null,null,'l2m0','l2m1')];
+  const lF=[mk('lf',null,null,'l2m0','l2m1')]; // 2 SF winners fight → left finalist
 
-  /* RIGHT: same mirror structure */
   const rR=Array.from({length:8},(_,i)=>mk(`r0m${i}`,T[16+i*2],T[16+i*2+1]));
   const rQ=Array.from({length:4},(_,i)=>mk(`r1m${i}`,null,null,`r0m${i*2}`,`r0m${i*2+1}`));
   const rS=Array.from({length:2},(_,i)=>mk(`r2m${i}`,null,null,`r1m${i*2}`,`r1m${i*2+1}`));
-  /* Right final match: the two right SF winners */
-  const rF=[mk('rf',null,null,'r2m0','r2m1')];
+  const rF=[mk('rf',null,null,'r2m0','r2m1')]; // 2 SF winners fight → right finalist
 
-  /* THE FINAL: left finalist vs right finalist */
-  const fin=[mk('final',null,null,'lf','rf')];
+  const fin=[mk('final',null,null,'lf','rf')]; // left finalist vs right finalist
 
-  /* rounds layout:
-     [0] left R16(8)  [1] left QF(4)  [2] left SF(2)  [3] left finalist(1)
-     [4] FINAL(1)
-     [5] right finalist(1)  [6] right SF(2)  [7] right QF(4)  [8] right R16(8) */
   R=[lR,lQ,lS,lF,fin,rF,rS,rQ,rR];
 }
 
 function gm(id){for(const r of R)for(const m of r)if(m.id===id)return m;return null;}
 
 function propM(m){
-  m.t1=gm(m.s1)?.w||null; m.t2=gm(m.s2)?.w||null;
+  if(!m.s1)return;
+  m.t1=gm(m.s1)?.w||null;
+  m.t2=gm(m.s2)?.w||null;
   if(m.w&&(!m.t1||m.w.n!==m.t1.n)&&(!m.t2||m.w.n!==m.t2.n))m.w=null;
 }
 
 function prop(){
-  /* left side: QF[1], SF[2], left finalist[3] */
-  for(let r=1;r<=3;r++) for(const m of R[r]) propM(m);
-  /* right side: right finalist[5], SF[6], QF[7] */
-  for(let r=5;r<=7;r++) for(const m of R[r]) propM(m);
-  /* final[4] */
+  // left: QF[1], SF[2], SF-Final[3]
+  for(const m of R[1]) propM(m);
+  for(const m of R[2]) propM(m);
+  for(const m of R[3]) propM(m);
+  // right: SF-Final[5], SF[6], QF[7]
+  for(const m of R[5]) propM(m);
+  for(const m of R[6]) propM(m);
+  for(const m of R[7]) propM(m);
+  // final[4]
   propM(R[4][0]);
 }
 
-let adminPass=sessionStorage.getItem('adminPass')||null;
-
 async function api(path,o={}){
-  const headers={'Content-Type':'application/json'};
-  if(adminPass)headers['x-admin-pass']=adminPass;
-  try{const r=await fetch(API+path,{headers,...o});if(!r.ok)throw 0;return r.json();}
+  const h={'Content-Type':'application/json'};
+  if(adminPass)h['x-admin-pass']=adminPass;
+  try{const r=await fetch(API+path,{headers:h,...o});if(!r.ok)throw 0;return r.json();}
   catch{return null;}
 }
 
@@ -94,72 +100,59 @@ async function pick(mid,team){
   m.w=team;prop();render();await saveP();
 }
 
-/* ── BUILD MATCHUP CARD ── */
+/* ── MATCH CARD ── */
 function buildCard(m,canPick){
-  const {t1,t2,w}=m;
-  const hasBoth=t1&&t2;
-
-  /* if neither team known yet → TBD placeholder */
+  const{t1,t2,w}=m;
   if(!t1&&!t2){
     const d=document.createElement('div');d.className='tbd-card';d.textContent='TBD';return d;
   }
-
   const card=document.createElement('div');
-  card.className='mcard'+((!canPick||!hasBoth)?' mlocked':'');
+  const interactive=canPick&&t1&&t2;
+  card.className='mcard'+(interactive?'':' mlocked');
 
-  /* flag circles row */
   const row=document.createElement('div');row.className='mcard-teams';
 
-  const fc1=document.createElement('div');
-  fc1.className='flag-circle'+(w&&t1&&w.n===t1.n?' fc-win':w&&t1?' fc-lose':'')+(t1?' ':' fc-tbd');
-  fc1.textContent=t1?t1.f:'?';
+  function makeFC(t,isWin,isLose){
+    const fc=document.createElement('div');
+    fc.className='flag-circle'+(isWin?' fc-win':isLose?' fc-lose':!t?' fc-tbd':'');
+    fc.textContent=t?t.f:'?';
+    return fc;
+  }
+
+  const isW1=w&&t1&&w.n===t1.n, isL1=w&&t1&&w.n!==t1.n;
+  const isW2=w&&t2&&w.n===t2.n, isL2=w&&t2&&w.n!==t2.n;
+  const fc1=makeFC(t1,isW1,isL1);
+  const fc2=makeFC(t2,isW2,isL2);
 
   const mid_col=document.createElement('div');mid_col.className='vs-mid';
-  const vsText=document.createElement('div');vsText.className='vs-text';vsText.textContent='VS';
+  const vsT=document.createElement('div');vsT.className='vs-text';vsT.textContent='VS';
   const names=document.createElement('div');names.className='vs-names';
-  const n1=document.createElement('div');
-  n1.className='vname'+(w&&t1&&w.n===t1.n?' vwin':w&&t1?' vlose':'');
-  n1.textContent=t1?t1.n:'—';
-  const n2=document.createElement('div');
-  n2.className='vname'+(w&&t2&&w.n===t2.n?' vwin':w&&t2?' vlose':'');
-  n2.textContent=t2?t2.n:'—';
-  names.append(n1,n2);mid_col.append(vsText,names);
-
-  const fc2=document.createElement('div');
-  fc2.className='flag-circle'+(w&&t2&&w.n===t2.n?' fc-win':w&&t2?' fc-lose':'')+(t2?' ':' fc-tbd');
-  fc2.textContent=t2?t2.f:'?';
+  const n1=document.createElement('div');n1.className='vname'+(isW1?' vwin':isL1?' vlose':'');n1.textContent=t1?t1.n:'—';
+  const n2=document.createElement('div');n2.className='vname'+(isW2?' vwin':isL2?' vlose':'');n2.textContent=t2?t2.n:'—';
+  names.append(n1,n2);mid_col.append(vsT,names);
 
   row.append(fc1,mid_col,fc2);
   card.appendChild(row);
 
-  /* winner strip */
   if(w){
     const wr=document.createElement('div');wr.className='winner-row';
     wr.innerHTML=`<span class="wflag">${w.f}</span>${w.n} advances`;
     card.appendChild(wr);
   }
 
-  /* click to pick */
-  if(canPick&&hasBoth&&!w){
-    fc1.style.cursor='pointer';fc2.style.cursor='pointer';
-    fc1.title=`Pick ${t1.n}`;fc2.title=`Pick ${t2.n}`;
-    fc1.addEventListener('click',e=>{e.stopPropagation();pick(m.id,t1);});
-    fc2.addEventListener('click',e=>{e.stopPropagation();pick(m.id,t2);});
-    fc1.addEventListener('mouseenter',()=>fc1.style.borderColor='var(--gold)');
-    fc1.addEventListener('mouseleave',()=>fc1.style.borderColor='');
-    fc2.addEventListener('mouseenter',()=>fc2.style.borderColor='var(--gold)');
-    fc2.addEventListener('mouseleave',()=>fc2.style.borderColor='');
-  } else if(canPick&&hasBoth&&w){
-    /* allow re-pick by clicking a flag */
-    fc1.style.cursor='pointer';fc2.style.cursor='pointer';
-    fc1.addEventListener('click',e=>{e.stopPropagation();pick(m.id,t1);});
-    fc2.addEventListener('click',e=>{e.stopPropagation();pick(m.id,t2);});
+  if(interactive){
+    [fc1,fc2].forEach((fc,idx)=>{
+      const team=idx===0?t1:t2;
+      fc.style.cursor='pointer';
+      fc.addEventListener('click',e=>{e.stopPropagation();pick(m.id,team);});
+      fc.addEventListener('mouseenter',()=>fc.style.borderColor='var(--gold)');
+      fc.addEventListener('mouseleave',()=>fc.style.borderColor='');
+    });
   }
-
   return card;
 }
 
-function buildCol(matches,label,isRightHalf){
+function buildCol(matches,label){
   const col=document.createElement('div');col.className='rcol';
   col.innerHTML=`<div class="rlbl">${label}</div>`;
   const ms=document.createElement('div');ms.className='rmatches';
@@ -172,24 +165,26 @@ function buildCol(matches,label,isRightHalf){
   col.appendChild(ms);return col;
 }
 
-function buildFinal(can){
-  const f=R[4][0];const {t1,t2,w}=f;
+function buildFinal(){
+  const can=!locked&&!!user;
+  const f=R[4][0];const{t1,t2,w}=f;
   const card=document.createElement('div');
   card.className='fin-card'+(!can?' mlocked':'');
 
   const lbl=document.createElement('div');lbl.className='finlbl';lbl.textContent='Final';
   const row=document.createElement('div');row.className='fin-teams';
 
-  const ff1=document.createElement('div');
-  ff1.className='fin-flag'+(w&&t1&&w.n===t1.n?' fw':w&&t1?' fl':!t1?' ft':'');
-  ff1.textContent=t1?t1.f:'?';
-
+  function makeFF(t,isWin,isLose){
+    const ff=document.createElement('div');
+    ff.className='fin-flag'+(isWin?' fw':isLose?' fl':!t?' ft':'');
+    ff.textContent=t?t.f:'?';
+    return ff;
+  }
+  const isW1=w&&t1&&w.n===t1.n,isL1=w&&t1&&w.n!==t1.n;
+  const isW2=w&&t2&&w.n===t2.n,isL2=w&&t2&&w.n!==t2.n;
+  const ff1=makeFF(t1,isW1,isL1);
   const fvs=document.createElement('div');fvs.className='fin-vs';fvs.textContent='VS';
-
-  const ff2=document.createElement('div');
-  ff2.className='fin-flag'+(w&&t2&&w.n===t2.n?' fw':w&&t2?' fl':!t2?' ft':'');
-  ff2.textContent=t2?t2.f:'?';
-
+  const ff2=makeFF(t2,isW2,isL2);
   row.append(ff1,fvs,ff2);
 
   const tr=document.createElement('div');tr.className='trophy-ring';tr.textContent='🏆';
@@ -199,36 +194,37 @@ function buildFinal(can){
   card.append(lbl,row,tr,cl,cv);
 
   if(can&&t1&&t2){
-    ff1.style.cursor='pointer';ff2.style.cursor='pointer';
-    ff1.addEventListener('click',()=>pick('final',t1));
-    ff2.addEventListener('click',()=>pick('final',t2));
+    [ff1,ff2].forEach((ff,idx)=>{
+      const team=idx===0?t1:t2;
+      ff.style.cursor='pointer';
+      ff.addEventListener('click',()=>pick('final',team));
+    });
   }
   return card;
 }
 
 function render(){
   const outer=document.getElementById('bouter');outer.innerHTML='';
-  const can=!locked&&!!user;
 
-  /* LEFT: R16[0] → QF[1] → SF[2] → left finalist[3] — all flow toward centre */
+  // Left: R16→QF→SF→SF-Final, all flow right (toward centre)
   const left=document.createElement('div');left.className='half hleft';
   left.appendChild(buildCol(R[0],'Round of 16'));
   left.appendChild(buildCol(R[1],'Quarter-finals'));
   left.appendChild(buildCol(R[2],'Semi-finals'));
-  left.appendChild(buildCol(R[3],'Finalist'));
+  left.appendChild(buildCol(R[3],'SF Final'));
   outer.appendChild(left);
 
-  /* CENTRE: The Final */
+  // Centre: The Final
   const cc=document.createElement('div');cc.className='ccol';
-  cc.appendChild(buildFinal(can));
+  cc.appendChild(buildFinal());
   outer.appendChild(cc);
 
-  /* RIGHT: right finalist[5] → SF[6] → QF[7] → R16[8] — mirror toward centre */
+  // Right: SF-Final→SF→QF→R16, flows left (toward centre)
   const right=document.createElement('div');right.className='half hright';
-  right.appendChild(buildCol(R[5],'Finalist',true));
-  right.appendChild(buildCol(R[6],'Semi-finals',true));
-  right.appendChild(buildCol(R[7],'Quarter-finals',true));
-  right.appendChild(buildCol(R[8],'Round of 16',true));
+  right.appendChild(buildCol(R[5],'SF Final'));
+  right.appendChild(buildCol(R[6],'Semi-finals'));
+  right.appendChild(buildCol(R[7],'Quarter-finals'));
+  right.appendChild(buildCol(R[8],'Round of 16'));
   outer.appendChild(right);
 
   renderProg();
@@ -262,9 +258,9 @@ async function registerEntry(){
   if(!email||!/^[^@]+@[^@]+\.[^@]+$/.test(email))return setMsg(msg,'Please enter a valid email.','err');
   const d=await api('/entries',{method:'POST',body:JSON.stringify({name,email})});
   if(!d)return setMsg(msg,'Could not save — try again.','err');
-  user=d; setMsg(msg,d.created?'Details saved!':'Welcome back!','ok');
+  user=d;setMsg(msg,d.created?'Details saved!':'Welcome back!','ok');
   if(d.picks){initR();for(const[id,t]of Object.entries(d.picks)){const m=gm(id);if(m)m.w=t;}prop();}
-  await loadE(); showW(); render();
+  await loadE();showW();render();
 }
 
 async function loadE(){const d=await api('/entries');if(d)entries=d;}
@@ -279,8 +275,7 @@ async function saveP(){
 }
 
 function showW(){
-  const wb=document.getElementById('wbar');
-  const es=document.getElementById('entrySection');
+  const wb=document.getElementById('wbar'),es=document.getElementById('entrySection');
   if(!user){wb.style.display='none';es.style.display='block';return;}
   es.style.display='none';wb.style.display='block';
   const init=user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
@@ -323,11 +318,7 @@ function showEntriesTable(){
 
 function renderEntries(){
   const list=document.getElementById('elist');
-  if(adminPass){
-    showEntriesTable();
-    return;
-  }
-  /* show login form */
+  if(adminPass){showEntriesTable();return;}
   list.innerHTML=`
     <div style="max-width:320px;margin:0 auto;padding:1.5rem 0;">
       <p style="font-size:13px;color:var(--t2);margin-bottom:1rem;">Admin access only. Enter your password to view all entries.</p>
@@ -344,16 +335,21 @@ function renderEntries(){
 
 async function adminLogin(){
   const pass=document.getElementById('apass')?.value||'';
-  const err=document.getElementById('loginErr');
   const d=await api('/admin/verify',{method:'POST',body:JSON.stringify({pass})});
   if(d?.ok){
-    adminPass=pass;
-    sessionStorage.setItem('adminPass',pass);
-    await loadE();
-    showEntriesTable();
+    adminPass=pass;sessionStorage.setItem('adminPass',pass);
+    document.getElementById('abar').classList.add('on');
+    await loadE();showEntriesTable();
   } else {
+    const err=document.getElementById('loginErr');
     if(err){err.style.display='inline';setTimeout(()=>err.style.display='none',3000);}
   }
+}
+
+function adminLogout(){
+  adminPass=null;sessionStorage.removeItem('adminPass');
+  document.getElementById('abar').classList.remove('on');
+  renderEntries();
 }
 
 function setStatus(l){
@@ -364,12 +360,12 @@ function setStatus(l){
 function setMsg(el,t,type){el.textContent=t;el.className='fmsg '+type;}
 
 async function unlockBracket(){
-  teams=DEMO.map(t=>({n:t.n,f:t.f}));locked=false;
+  teams=DEMO.map(t=>({...t}));locked=false;
   await api('/bracket-state',{method:'PUT',body:JSON.stringify({locked:false,teams:teams.map(t=>({name:t.n,flag:t.f}))})});
   initR();setStatus(false);render();
 }
 async function lockBracket(){
-  locked=true;teams=DEMO.map(t=>({n:t.n,f:t.f}));
+  locked=true;teams=DEMO.map(t=>({...t}));
   await api('/bracket-state',{method:'PUT',body:JSON.stringify({locked:true,teams:[]})});
   initR();setStatus(true);render();
 }
@@ -378,26 +374,19 @@ async function resetPicks(){
   await api(`/entries/${encodeURIComponent(user.email)}/picks`,{method:'PUT',body:JSON.stringify({picks:{},champion:null})});
   initR();render();
 }
-function adminLogout(){
-  adminPass=null;sessionStorage.removeItem('adminPass');
-  document.getElementById('abar').classList.remove('on');
-  renderEntries();
-}
 
 (async function init(){
-  /* show admin bar if password already in session */
   if(adminPass)document.getElementById('abar').classList.add('on');
 
-  /* always load demo teams so bracket is visible immediately */
-  teams=DEMO.map(t=>({n:t.n,f:t.f}));
+  // Always load demo teams so bracket is visible
+  teams=DEMO.map(t=>({...t}));
   locked=false;
 
-  /* get real bracket state from server */
   const st=await api('/bracket-state');
   if(st){
     locked=st.locked;
     if(!locked&&st.teams?.length)teams=st.teams.map(t=>({n:t.name||t.n,f:t.flag||t.f}));
-    else teams=DEMO.map(t=>({n:t.n,f:t.f}));
+    else teams=DEMO.map(t=>({...t}));
   }
 
   setStatus(locked);
