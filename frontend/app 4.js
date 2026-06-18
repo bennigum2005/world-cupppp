@@ -204,7 +204,9 @@ function buildFinal(){
 }
 
 function render(){
-  const outer=document.getElementById('bouter');outer.innerHTML='';
+  const outer=document.getElementById('bouter');
+  if(!outer){console.error('bouter not found');return;}
+  outer.innerHTML='';
 
   // Left: R16→QF→SF→SF-Final, all flow right (toward centre)
   const left=document.createElement('div');left.className='half hleft';
@@ -376,6 +378,7 @@ async function resetPicks(){
 }
 
 (async function init(){
+  try{
   if(adminPass)document.getElementById('abar').classList.add('on');
 
   // Always load demo teams so bracket is visible
@@ -391,5 +394,10 @@ async function resetPicks(){
 
   setStatus(locked);
   await loadE();
-  initR();render();
+  initR();
+  render();
+  }catch(e){
+    console.error('INIT ERROR:',e);
+    document.getElementById('bouter').innerHTML='<div style="color:red;padding:2rem;">Error loading bracket: '+e.message+'</div>';
+  }
 })();
