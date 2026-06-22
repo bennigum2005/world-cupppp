@@ -1,113 +1,80 @@
 # ⚽ World Cup Bracket Predictor
 
-A simple bracket prediction game — no accounts, just name + email. Admin view shows all entries privately.
+No server needed — uses JSONBin.io as a free database. Host on GitHub Pages for free.
 
 ---
 
-## Project structure
+## One-time setup (5 minutes)
 
+### Step 1 — Create your free JSONBin database
+
+1. Go to **https://jsonbin.io** and click "Sign Up" (free)
+2. After logging in, click **"Create Bin"**
+3. Paste this as the starting content and click Save:
+```json
+{
+  "bracketState": { "locked": true, "teams": [] },
+  "entries": []
+}
 ```
-worldcup-bracket/
-├── frontend/
-│   ├── index.html    ← the game UI
-│   ├── style.css     ← all styles
-│   └── app.js        ← bracket logic + API calls
-├── backend/
-│   └── server.js     ← Express API + JSON file database
-├── package.json
-├── Procfile          ← for Railway / Render deployment
-└── .gitignore
+4. Copy the **Bin ID** from the URL — it looks like `64abc123def456`
+5. Go to **API Keys** in the left menu → create a key → copy it
+
+### Step 2 — Add your keys to the app
+
+Open `frontend/app.js` and find lines 10-11 near the top:
+```js
+const JSONBIN_BIN_ID  = 'PASTE_YOUR_BIN_ID_HERE';
+const JSONBIN_API_KEY = 'PASTE_YOUR_API_KEY_HERE';
 ```
+Replace the placeholder text with your actual Bin ID and API key.
 
----
-
-## Running locally
-
-### 1. Install dependencies
-```bash
-npm install
-```
-
-### 2. Start the server
-```bash
-npm start
-```
-
-Open **http://localhost:3000** in your browser.
-
-For live reload during development:
-```bash
-npm run dev
-```
-
----
-
-## How it works
-
-| URL | Who sees it | What it shows |
-|-----|------------|---------------|
-| `http://your-site.com` | Everyone | The bracket game — enter name + email, pick winners |
-| `http://your-site.com?admin=1` | You only | Same game + admin controls + full entries list |
-
-**Admin controls** (only visible at `?admin=1`):
-- **Unlock bracket** — loads the 16 playoff teams and opens picking
-- **Lock bracket** — closes picking (e.g. once the tournament starts)
-- **Reset my picks** — clears your own picks for testing
-
-**To set the real teams**, edit `DEMO_TEAMS` in `frontend/app.js` with the actual qualified nations before unlocking.
-
----
-
-## Deploying to Railway (free, recommended)
-
-Railway gives you a free persistent server — picks save permanently.
-
-1. Push this repo to GitHub (see below)
-2. Go to **https://railway.app** → New Project → Deploy from GitHub repo
-3. Select your repo — Railway auto-detects Node.js
-4. It will deploy automatically. Copy the public URL Railway gives you.
-5. Visit `https://your-app.railway.app?admin=1` to manage the bracket
-
-That's it — Railway handles everything including keeping `db.json` persistent.
-
----
-
-## Pushing to GitHub
+### Step 3 — Push to GitHub
 
 ```bash
-# Inside the worldcup-bracket folder:
 git init
 git add .
-git commit -m "Initial commit — World Cup bracket predictor"
-
-# Create a new repo on github.com, then:
+git commit -m "World Cup bracket predictor"
+# Create a repo on github.com, then:
 git remote add origin https://github.com/YOUR_USERNAME/worldcup-bracket.git
 git branch -M main
 git push -u origin main
 ```
+
+### Step 4 — Enable GitHub Pages (free hosting)
+
+1. Go to your repo on GitHub
+2. Click **Settings** → **Pages** (left sidebar)
+3. Under "Source", select **main branch** and set folder to `/frontend`
+4. Click Save — GitHub gives you a URL like `https://yourusername.github.io/worldcup-bracket`
+
+That's it — share that URL with your friends!
+
+---
+
+## How to use it
+
+| URL | Who | What |
+|-----|-----|------|
+| `https://yourusername.github.io/worldcup-bracket` | Everyone | Enter name + email, pick winners |
+| Same URL + `?admin=1` | You only | Admin controls + all entries list |
+
+**Admin controls** (add `?admin=1` to the URL):
+- **Unlock bracket** — loads the 16 playoff teams and opens picking
+- **Lock bracket** — closes picking
+- **Reset my picks** — clears your own picks for testing
 
 ---
 
 ## When the playoff teams are confirmed
 
 1. Open `frontend/app.js`
-2. Find the `DEMO_TEAMS` array near the top
-3. Replace the team names and flags with the actual qualified nations
-4. Push to GitHub — Railway redeploys automatically
-5. Go to `?admin=1` and click **Unlock bracket**
+2. Find the `DEMO_TEAMS` array and replace with the real qualified nations + flag emojis
+3. Push to GitHub — site updates in ~60 seconds
+4. Go to `?admin=1` and click **Unlock bracket**
 
 ---
 
 ## Sharing with friends
 
-Just send them the plain URL (no `?admin=1`). They enter their name and email, and their picks are saved. If they close the tab and come back, entering the same email restores their picks.
-
----
-
-## Data storage
-
-All data lives in `backend/db.json` (created automatically on first run). It stores:
-- Bracket lock state and team list
-- All entries (name, email, picks, champion)
-
-The file is excluded from git via `.gitignore` so nobody's email is committed to the repo.
+Send the plain URL (no `?admin=1`). They enter name + email and their picks save automatically. If they close the tab and come back, entering the same email restores their picks.

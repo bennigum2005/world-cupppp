@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: worldcup-bracket
+    runtime: node
+    buildCommand: npm install
+    startCommand: node backend/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
