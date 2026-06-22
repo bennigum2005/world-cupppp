@@ -65,6 +65,28 @@ async function api(path, opts = {}) {
   catch { return null; }
 }
 
+/* ════════ REFRESH USER STATE FROM SERVER ════════ */
+async function refreshUser() {
+  if (!user) return;
+  // re-POST with same details to get fresh state from server
+  const d = await fetch(API + '/entries', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: user.name, email: user.email })
+  }).then(r => r.json()).catch(() => null);
+  if (d) {
+    user = d;
+    // restore picks into match map
+    initMatches();
+    if (d.picks) {
+      for (const [id, team] of Object.entries(d.picks)) if (M[id]) M[id].w = team;
+      propagate();
+    }
+    showWelcome();
+    render();
+  }
+}
+
 /* ════════ PICKS ════════ */
 async function pick(matchId, team) {
   if (locked || tournamentStarted || !user || user.locked) return;
@@ -379,10 +401,12 @@ function adminLogout() {
 }
 
 async function adminResetPicks(email) {
-  if (!confirm(`Reset all picks for ${email}? This cannot be undone.`)) return;
+  if (!confirm(`Reset all picks for ${email}? This also unlocks their entry so they can pick again.`)) return;
   const r = await api(`/admin/entries/${encodeURIComponent(email)}/reset`, { method: 'PUT' });
-  if (r?.ok) { await loadEntries(); showEntriesTable(); }
-  else alert('Could not reset picks. Try again.');
+  if (r?.ok) {
+    if (user && user.email === email.toLowerCase()) await refreshUser();
+    await loadEntries(); showEntriesTable();
+  } else alert('Could not reset picks. Try again.');
 }
 
 async function adminUnlockEntry(email) {
@@ -456,8 +480,8 @@ async function unlockBracket() {
 }
 async function resetPicks() {
   if (!user) return;
-  await api(`/entries/${encodeURIComponent(user.email)}/picks`, { method:'PUT', body:JSON.stringify({picks:{},champion:null}) });
-  initMatches(); render();
+  const r = await api(`/admin/entries/${encodeURIComponent(user.email)}/reset`, { method: 'PUT' });
+  if (r?.ok) await refreshUser();
 }
 async function syncResults() {
   // fetch knockout results from free WC API

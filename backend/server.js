@@ -131,6 +131,8 @@ app.put('/api/admin/entries/:email/reset', (req, res) => {
   if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
   db.entries[idx].picks = {};
   db.entries[idx].champion = null;
+  db.entries[idx].locked = false;
+  db.entries[idx].lockedAt = null;
   db.entries[idx].lastSaved = new Date().toISOString();
   writeDB(db);
   res.json({ ok: true });
