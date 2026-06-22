@@ -539,7 +539,14 @@ function setMsg(el, t, type) { el.textContent = t; el.className = 'fmsg ' + type
   // populate user from session
   user = sessionUser;
 
-  if (adminPass) document.getElementById('abar').classList.add('on');
+  // show admin tabs and bar only for admin accounts
+  if (user.isAdmin) {
+    if (adminPass) document.getElementById('abar').classList.add('on');
+    const tt = document.getElementById('tab-tracker');
+    const te = document.getElementById('tab-entries');
+    if (tt) tt.style.display = '';
+    if (te) te.style.display = '';
+  }
 
   // add logout button to header
   const hdr = document.querySelector('.hdr');

@@ -55,6 +55,11 @@ function safeUser(e) {
   return rest;
 }
 
+/* check if an entry is the admin account */
+function isAdminAccount(email) {
+  return (process.env.ADMIN_EMAIL || '').toLowerCase() === email.toLowerCase();
+}
+
 /* ══════════════════════════════════════
    AUTH ROUTES
 ══════════════════════════════════════ */
@@ -87,7 +92,9 @@ app.post('/api/auth/register', async (req, res) => {
   };
   db.entries.push(entry);
   writeDB(db);
-  res.json({ user: safeUser(entry) });
+  const safe = safeUser(entry);
+  safe.isAdmin = isAdminAccount(entry.email);
+  res.json({ user: safe });
 });
 
 /* POST /api/auth/login */
@@ -107,7 +114,9 @@ app.post('/api/auth/login', async (req, res) => {
   if (!match)
     return res.status(401).json({ error: 'Incorrect password.' });
 
-  res.json({ user: safeUser(entry) });
+  const safe = safeUser(entry);
+  safe.isAdmin = isAdminAccount(entry.email);
+  res.json({ user: safe });
 });
 
 /* ══════════════════════════════════════
