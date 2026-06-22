@@ -68,9 +68,15 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 6 characters.' });
 
   const db  = readDB();
-  const idx = db.entries.findIndex(e => e.email.toLowerCase() === email.toLowerCase());
-  if (idx >= 0)
+
+  const emailTaken = db.entries.find(e => e.email.toLowerCase() === email.toLowerCase());
+  if (emailTaken)
     return res.status(409).json({ error: 'An account with this email already exists.' });
+
+  const normalisePhone = p => p.replace(/[\s\-().+]/g, '');
+  const phoneTaken = db.entries.find(e => normalisePhone(e.phone || '') === normalisePhone(phone));
+  if (phoneTaken)
+    return res.status(409).json({ error: 'An account with this phone number already exists.' });
 
   const passwordHash = await bcrypt.hash(password, 10);
   const entry = {
