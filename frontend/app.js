@@ -51,6 +51,9 @@ function initMatches() {
   for (let i = 0; i < 2; i++) M['r_sf_'+i]  = newM('r_sf_'+i,  null, null, 'r_qf_'+(i*2),  'r_qf_'+(i*2+1));
   M['r_sff'] = newM('r_sff', null, null, 'r_sf_0', 'r_sf_1');
   M['final'] = newM('final', null, null, 'l_sff', 'r_sff');
+
+  // 3rd place: losers of each side's SF Final
+  M['third'] = newM('third', null, null, 'l_sff', 'r_sff');
 }
 
 const PROP_ORDER = ['l_qf_0','l_qf_1','l_qf_2','l_qf_3','l_sf_0','l_sf_1','l_sff',
@@ -318,6 +321,59 @@ function renderTracker() {
   el.innerHTML = html || '<div class="empty">No completed rounds yet.</div>';
 }
 
+/* ════════ THIRD PLACE ════════ */
+function renderThirdPlace() {
+  const el = document.getElementById('thirdplace-content');
+  if (!el) return;
+  const m = M['third'];
+  const can = !locked && !tournamentStarted && !!user && !user.locked;
+  const { t1, t2, w } = m;
+
+  if (!t1 && !t2) {
+    el.innerHTML = '<div class="empty" style="padding:2rem;">The third place teams will be confirmed once both semi-finals are played.</div>';
+    return;
+  }
+
+  const w1 = w && t1 && w.n === t1.n, l1 = w && t1 && !w1;
+  const w2 = w && t2 && w.n === t2.n, l2 = w && t2 && !w2;
+
+  function fc(team, win, lose) {
+    return `<div class="flag-circle${win?' fc-win':lose?' fc-lose':''}" style="width:52px;height:52px;font-size:22px;">${team?team.f:'?'}</div>`;
+  }
+
+  el.innerHTML = `
+    <div class="mcard" style="max-width:380px;margin:0 auto;padding:1.5rem;">
+      <div class="mcard-teams" style="gap:12px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
+          ${fc(t1,w1,l1)}
+          <div class="vname${w1?' vwin':l1?' vlose':''}" style="font-size:13px;text-align:center;">${t1?t1.n:'TBD'}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--t3);">3RD PLACE</div>
+          <div style="font-size:20px;">🥉</div>
+          <div class="vs-text">VS</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
+          ${fc(t2,w2,l2)}
+          <div class="vname${w2?' vwin':l2?' vlose':''}" style="font-size:13px;text-align:center;">${t2?t2.n:'TBD'}</div>
+        </div>
+      </div>
+      ${w ? `<div class="winner-row" style="margin-top:12px;justify-content:center;">${w.f} ${w.n} — 3rd place 🥉</div>` : (can && t1 && t2 ? '<p style="font-size:12px;color:var(--t2);text-align:center;margin-top:12px;">Click a flag to pick the 3rd place winner</p>' : '')}
+    </div>`;
+
+  if (can && t1 && t2 && !w) {
+    const flags = el.querySelectorAll('.flag-circle');
+    flags[0].style.cursor = 'pointer';
+    flags[1].style.cursor = 'pointer';
+    flags[0].addEventListener('click', () => { M['third'].w = t1; propagate(); renderThirdPlace(); savePicks(); });
+    flags[1].addEventListener('click', () => { M['third'].w = t2; propagate(); renderThirdPlace(); savePicks(); });
+    flags[0].addEventListener('mouseenter', () => flags[0].style.borderColor = 'var(--gold)');
+    flags[0].addEventListener('mouseleave', () => flags[0].style.borderColor = '');
+    flags[1].addEventListener('mouseenter', () => flags[1].style.borderColor = 'var(--gold)');
+    flags[1].addEventListener('mouseleave', () => flags[1].style.borderColor = '');
+  }
+}
+
 /* ════════ TABS ════════ */
 function showTab(name, el) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -326,6 +382,7 @@ function showTab(name, el) {
   el.classList.add('active');
   if (name === 'entries') renderEntries();
   if (name === 'tracker') renderTracker();
+  if (name === 'thirdplace') renderThirdPlace();
 }
 
 /* ════════ ENTRY FORM ════════ */
@@ -592,6 +649,6 @@ function setMsg(el, t, type) { el.textContent = t; el.className = 'fmsg ' + type
     for (const [id, team] of Object.entries(user.picks)) if (M[id]) M[id].w = team;
     propagate();
   }
-  setStatus(); showWelcome(); render();
+  setStatus(); showWelcome(); render(); renderThirdPlace();
   await loadEntries();
 })();
