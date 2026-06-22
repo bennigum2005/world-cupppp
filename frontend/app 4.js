@@ -67,6 +67,15 @@ function propagate() {
     if (m.w && m.t1 && m.t2 && m.w.n !== m.t1.n && m.w.n !== m.t2.n) m.w = null;
     else if (m.w && (!m.t1 || !m.t2)) m.w = null;
   }
+
+  // Third place: losers of l_sff and r_sff (the two SF Finals)
+  const lSFF = M['l_sff'], rSFF = M['r_sff'], tp = M['third'];
+  // loser of l_sff = whoever DIDN'T win
+  tp.t1 = lSFF.w ? (lSFF.w.n === lSFF.t1?.n ? lSFF.t2 : lSFF.t1) : null;
+  tp.t2 = rSFF.w ? (rSFF.w.n === rSFF.t1?.n ? rSFF.t2 : rSFF.t1) : null;
+  // clear third place pick if teams changed
+  if (tp.w && tp.t1 && tp.t2 && tp.w.n !== tp.t1.n && tp.w.n !== tp.t2.n) tp.w = null;
+  else if (tp.w && (!tp.t1 || !tp.t2)) tp.w = null;
 }
 
 /* ════════ API ════════ */
