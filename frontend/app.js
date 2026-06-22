@@ -378,6 +378,20 @@ function adminLogout() {
   renderEntries();
 }
 
+async function adminResetPicks(email) {
+  if (!confirm(`Reset all picks for ${email}? This cannot be undone.`)) return;
+  const r = await api(`/admin/entries/${encodeURIComponent(email)}/reset`, { method: 'PUT' });
+  if (r?.ok) { await loadEntries(); showEntriesTable(); }
+  else alert('Could not reset picks. Try again.');
+}
+
+async function adminUnlockEntry(email) {
+  if (!confirm(`Unlock picks for ${email} so they can make changes?`)) return;
+  const r = await api(`/admin/entries/${encodeURIComponent(email)}/unlock`, { method: 'PUT' });
+  if (r?.ok) { await loadEntries(); showEntriesTable(); }
+  else alert('Could not unlock. Try again.');
+}
+
 function showEntriesTable() {
   const list = document.getElementById('elist'); if (!list) return;
   if (!entries.length) { list.innerHTML = '<div class="empty">No entries yet.</div>'; return; }
@@ -385,9 +399,15 @@ function showEntriesTable() {
     const p = Object.keys(e.picks||{}).length, pct = Math.round((p/31)*100);
     const init = e.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     const saved = e.lastSaved ? new Date(e.lastSaved).toLocaleDateString() : '—';
+    const escapedEmail = e.email.replace(/'/g, "\'");
     const lockBadge = e.locked
       ? `<span class="bdg bg">🔒 Locked</span>`
       : `<span class="bdg bd">Open</span>`;
+    const actions = `
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-d" style="font-size:10px;padding:4px 8px;" onclick="adminResetPicks('${escapedEmail}')">Reset picks</button>
+        ${e.locked ? `<button class="btn" style="font-size:10px;padding:4px 8px;" onclick="adminUnlockEntry('${escapedEmail}')">Unlock</button>` : ''}
+      </div>`;
     return `<tr>
       <td><div style="display:flex;align-items:center;gap:9px;">
         <div class="av" style="width:28px;height:28px;font-size:10px;">${init}</div>
@@ -403,10 +423,11 @@ function showEntriesTable() {
         <span class="bdg ${p===31?'bg':p>0?'bgg':'bd'}">${p}/31</span>
       </div></td>
       <td style="color:var(--t3);font-size:11px;">${saved}</td>
+      <td>${actions}</td>
     </tr>`;
   }).join('');
   list.innerHTML = `<table class="etbl">
-    <thead><tr><th>Player</th><th>Champion</th><th>Status</th><th>Progress</th><th>Saved</th></tr></thead>
+    <thead><tr><th>Player</th><th>Champion</th><th>Status</th><th>Progress</th><th>Saved</th><th>Actions</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }

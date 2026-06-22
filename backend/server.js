@@ -123,6 +123,31 @@ app.put('/api/results', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ── Admin: reset a specific entry's picks ── */
+app.put('/api/admin/entries/:email/reset', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const db = readDB();
+  const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
+  if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
+  db.entries[idx].picks = {};
+  db.entries[idx].champion = null;
+  db.entries[idx].lastSaved = new Date().toISOString();
+  writeDB(db);
+  res.json({ ok: true });
+});
+
+/* ── Admin: unlock a specific entry so they can re-pick ── */
+app.put('/api/admin/entries/:email/unlock', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const db = readDB();
+  const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
+  if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
+  db.entries[idx].locked = false;
+  db.entries[idx].lockedAt = null;
+  writeDB(db);
+  res.json({ ok: true });
+});
+
 /* ── Admin: verify password ── */
 app.post('/api/admin/verify', (req, res) => {
   if (req.body.pass === ADMIN_PASS) res.json({ ok: true });
