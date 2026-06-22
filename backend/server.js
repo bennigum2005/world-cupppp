@@ -1,7 +1,8 @@
-const express = require('express');
-const cors    = require('cors');
-const fs      = require('fs');
-const path    = require('path');
+const express  = require('express');
+const cors     = require('cors');
+const fs       = require('fs');
+const path     = require('path');
+const bcrypt   = require('bcryptjs');
 
 const app      = express();
 const PORT     = process.env.PORT || 3000;
@@ -37,12 +38,10 @@ function readDB() {
   if (!fs.existsSync(DB))
     fs.writeFileSync(DB, JSON.stringify({
       bracketState: { locked: false, tournamentStarted: false, teams: DEMO_TEAMS },
-      entries: [],
-      results: {}
+      entries: [], results: {}
     }, null, 2));
   const data = JSON.parse(fs.readFileSync(DB, 'utf8'));
-  if (!data.bracketState.teams || data.bracketState.teams.length < 32)
-    data.bracketState.teams = DEMO_TEAMS;
+  if (!data.bracketState.teams || data.bracketState.teams.length < 32) data.bracketState.teams = DEMO_TEAMS;
   if (!data.results) data.results = {};
   if (data.bracketState.tournamentStarted === undefined) data.bracketState.tournamentStarted = false;
   return data;
@@ -50,7 +49,64 @@ function readDB() {
 function writeDB(data) { fs.writeFileSync(DB, JSON.stringify(data, null, 2)); }
 function isAdmin(req) { return req.headers['x-admin-pass'] === ADMIN_PASS; }
 
-/* ── Bracket state ── */
+/* safe user object — never send password hash to client */
+function safeUser(e) {
+  const { passwordHash, ...rest } = e;
+  return rest;
+}
+
+/* ══════════════════════════════════════
+   AUTH ROUTES
+══════════════════════════════════════ */
+
+/* POST /api/auth/register */
+app.post('/api/auth/register', async (req, res) => {
+  const { name, email, phone, password } = req.body;
+  if (!name || !email || !phone || !password)
+    return res.status(400).json({ error: 'All fields are required.' });
+  if (password.length < 6)
+    return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+
+  const db  = readDB();
+  const idx = db.entries.findIndex(e => e.email.toLowerCase() === email.toLowerCase());
+  if (idx >= 0)
+    return res.status(409).json({ error: 'An account with this email already exists.' });
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const entry = {
+    name, email: email.toLowerCase(), phone,
+    passwordHash,
+    picks: {}, champion: null,
+    locked: false, joined: new Date().toISOString()
+  };
+  db.entries.push(entry);
+  writeDB(db);
+  res.json({ user: safeUser(entry) });
+});
+
+/* POST /api/auth/login */
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password)
+    return res.status(400).json({ error: 'Email and password are required.' });
+
+  const db  = readDB();
+  const entry = db.entries.find(e => e.email === email.toLowerCase());
+  if (!entry)
+    return res.status(401).json({ error: 'No account found with that email.' });
+  if (!entry.passwordHash)
+    return res.status(401).json({ error: 'This account was created before passwords were added. Please contact admin.' });
+
+  const match = await bcrypt.compare(password, entry.passwordHash);
+  if (!match)
+    return res.status(401).json({ error: 'Incorrect password.' });
+
+  res.json({ user: safeUser(entry) });
+});
+
+/* ══════════════════════════════════════
+   BRACKET STATE
+══════════════════════════════════════ */
 app.get('/api/bracket-state', (req, res) => res.json(readDB().bracketState));
 
 app.put('/api/bracket-state', (req, res) => {
@@ -60,110 +116,101 @@ app.put('/api/bracket-state', (req, res) => {
   if (locked !== undefined) db.bracketState.locked = !!locked;
   if (tournamentStarted !== undefined) db.bracketState.tournamentStarted = !!tournamentStarted;
   if (teams && teams.length === 32) db.bracketState.teams = teams;
-  writeDB(db);
-  res.json(db.bracketState);
+  writeDB(db); res.json(db.bracketState);
 });
 
-/* ── Entries ── */
+/* ══════════════════════════════════════
+   ENTRIES
+══════════════════════════════════════ */
 app.get('/api/entries', (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
-  res.json(readDB().entries);
+  res.json(readDB().entries.map(safeUser));
 });
 
-app.post('/api/entries', (req, res) => {
-  const { name, email } = req.body;
-  if (!name || !email) return res.status(400).json({ error: 'Name and email required.' });
-  const db = readDB();
-  if (db.bracketState.tournamentStarted)
-    return res.status(403).json({ error: 'Tournament has started. No new entries.' });
-  const idx = db.entries.findIndex(e => e.email.toLowerCase() === email.toLowerCase());
-  if (idx >= 0) return res.json({ ...db.entries[idx], created: false });
-  const entry = { name, email: email.toLowerCase(), picks: {}, champion: null,
-                  locked: false, joined: new Date().toISOString() };
-  db.entries.push(entry);
-  writeDB(db);
-  res.json({ ...entry, created: true });
+/* GET own entry by email (authenticated) */
+app.get('/api/entries/:email', (req, res) => {
+  const db  = readDB();
+  const entry = db.entries.find(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
+  if (!entry) return res.status(404).json({ error: 'Not found.' });
+  res.json(safeUser(entry));
 });
 
-/* ── Save picks (only if not locked and tournament not started) ── */
+/* Save picks */
 app.put('/api/entries/:email/picks', (req, res) => {
   const { picks, champion } = req.body;
-  const db = readDB();
+  const db  = readDB();
   const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
   if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
   if (db.entries[idx].locked) return res.status(403).json({ error: 'Your picks are locked.' });
   if (db.bracketState.tournamentStarted) return res.status(403).json({ error: 'Tournament has started.' });
-  db.entries[idx].picks = picks || {};
+  db.entries[idx].picks    = picks    || {};
   db.entries[idx].champion = champion || null;
   db.entries[idx].lastSaved = new Date().toISOString();
-  writeDB(db);
-  res.json({ ok: true });
+  writeDB(db); res.json({ ok: true });
 });
 
-/* ── Lock own picks ── */
+/* Lock own picks */
 app.put('/api/entries/:email/lock', (req, res) => {
-  const db = readDB();
+  const db  = readDB();
   const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
   if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
   if (db.bracketState.tournamentStarted) return res.status(403).json({ error: 'Tournament already started.' });
-  db.entries[idx].locked = true;
+  db.entries[idx].locked   = true;
   db.entries[idx].lockedAt = new Date().toISOString();
-  writeDB(db);
-  res.json({ ok: true });
+  writeDB(db); res.json({ ok: true });
 });
 
-/* ── Real results (from API or manual fallback) ── */
+/* ══════════════════════════════════════
+   RESULTS
+══════════════════════════════════════ */
 app.get('/api/results', (req, res) => res.json(readDB().results));
-
 app.put('/api/results', (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
   const db = readDB();
   db.results = req.body.results || {};
-  writeDB(db);
-  res.json({ ok: true });
+  writeDB(db); res.json({ ok: true });
 });
 
-/* ── Admin: reset a specific entry's picks ── */
-app.put('/api/admin/entries/:email/reset', (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
-  const db = readDB();
-  const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
-  if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
-  db.entries[idx].picks = {};
-  db.entries[idx].champion = null;
-  db.entries[idx].locked = false;
-  db.entries[idx].lockedAt = null;
-  db.entries[idx].lastSaved = new Date().toISOString();
-  writeDB(db);
-  res.json({ ok: true });
-});
-
-/* ── Admin: unlock a specific entry so they can re-pick ── */
-app.put('/api/admin/entries/:email/unlock', (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
-  const db = readDB();
-  const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
-  if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
-  db.entries[idx].locked = false;
-  db.entries[idx].lockedAt = null;
-  writeDB(db);
-  res.json({ ok: true });
-});
-
-/* ── Admin: verify password ── */
+/* ══════════════════════════════════════
+   ADMIN ROUTES
+══════════════════════════════════════ */
 app.post('/api/admin/verify', (req, res) => {
   if (req.body.pass === ADMIN_PASS) res.json({ ok: true });
   else res.status(401).json({ error: 'Wrong password' });
 });
 
-/* ── Reset bracket (one-time fix) ── */
+app.put('/api/admin/entries/:email/reset', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const db  = readDB();
+  const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
+  if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
+  db.entries[idx].picks     = {};
+  db.entries[idx].champion  = null;
+  db.entries[idx].locked    = false;
+  db.entries[idx].lockedAt  = null;
+  db.entries[idx].lastSaved = new Date().toISOString();
+  writeDB(db); res.json({ ok: true });
+});
+
+app.put('/api/admin/entries/:email/unlock', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const db  = readDB();
+  const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
+  if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
+  db.entries[idx].locked   = false;
+  db.entries[idx].lockedAt = null;
+  writeDB(db); res.json({ ok: true });
+});
+
 app.get('/api/reset-bracket', (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
   const db = readDB();
   db.bracketState = { locked: false, tournamentStarted: false, teams: DEMO_TEAMS };
-  writeDB(db);
-  res.json({ ok: true });
+  writeDB(db); res.json({ ok: true });
 });
+
+/* ── serve login page ── */
+app.get('/login', (req, res) => res.sendFile(path.join(FRONTEND, 'login.html')));
 
 app.get('*', (req, res) => res.sendFile(path.join(FRONTEND, 'index.html')));
 

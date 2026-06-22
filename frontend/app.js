@@ -25,6 +25,15 @@ let user = null, entries = [], teams = DEMO.slice();
 let adminPass = sessionStorage.getItem('adminPass') || null;
 let M = {}, results = {};
 
+/* ── Session helpers ── */
+function getSessionUser() {
+  try { return JSON.parse(sessionStorage.getItem('wcUser')); } catch { return null; }
+}
+function logout() {
+  sessionStorage.removeItem('wcUser');
+  window.location.href = '/login';
+}
+
 /* ════════ MATCH MAP ════════ */
 function newM(id, t1, t2, src1, src2) {
   return { id, t1: t1||null, t2: t2||null, w: null, src1: src1||null, src2: src2||null };
@@ -341,9 +350,12 @@ async function registerEntry() {
 async function loadEntries() { const d = await api('/entries'); if (d && Array.isArray(d)) entries = d; }
 
 function showWelcome() {
-  const wb = document.getElementById('wbar'), es = document.getElementById('entrySection');
-  if (!user) { wb.style.display='none'; es.style.display='block'; return; }
-  es.style.display='none'; wb.style.display='block';
+  const wb = document.getElementById('wbar');
+  const es = document.getElementById('entrySection');
+  if (!user) { if(wb) wb.style.display='none'; if(es) es.style.display='none'; return; }
+  if(es) es.style.display='none';
+  if(!wb) return;
+  wb.style.display='block';
   const init = user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
   const lockStatus = user.locked
     ? '<span style="font-size:11px;color:var(--gold);">🔒 Picks locked</span>'
@@ -351,16 +363,7 @@ function showWelcome() {
   wb.innerHTML = `<div class="wbar">
     <div class="av" style="width:32px;height:32px;font-size:11px;">${init}</div>
     <div style="flex:1"><div class="wname">${user.name}</div><div class="wsub">${user.email} · ${lockStatus}</div></div>
-    <button class="btn" onclick="switchUser()" style="font-size:11px;">Not you?</button>
   </div>`;
-}
-
-function switchUser() {
-  user = null; initMatches();
-  document.getElementById('iname').value = '';
-  document.getElementById('iemail').value = '';
-  document.getElementById('fmsg').textContent = '';
-  showWelcome(); render();
 }
 
 /* ════════ ENTRIES TABLE (admin) ════════ */
@@ -529,10 +532,30 @@ function setMsg(el, t, type) { el.textContent = t; el.className = 'fmsg ' + type
 
 /* ════════ BOOT ════════ */
 (async function init() {
+  // check login — redirect if not logged in
+  const sessionUser = getSessionUser();
+  if (!sessionUser) { window.location.href = '/login'; return; }
+
+  // populate user from session
+  user = sessionUser;
+
   if (adminPass) document.getElementById('abar').classList.add('on');
 
+  // add logout button to header
+  const hdr = document.querySelector('.hdr');
+  if (hdr) {
+    const logoutBtn = document.createElement('button');
+    logoutBtn.className = 'btn';
+    logoutBtn.style.cssText = 'font-size:11px;padding:6px 12px;';
+    logoutBtn.textContent = 'Log out';
+    logoutBtn.onclick = logout;
+    hdr.appendChild(logoutBtn);
+  }
+
   teams = DEMO.slice(); locked = false; tournamentStarted = false;
-  initMatches(); setStatus(); render();
+  initMatches(); setStatus();
+  showWelcome(); // show user info immediately
+  render();
 
   const [st, res] = await Promise.all([api('/bracket-state'), api('/results')]);
 
@@ -542,9 +565,26 @@ function setMsg(el, t, type) { el.textContent = t; el.className = 'fmsg ' + type
     if (st.teams && st.teams.length === 32)
       teams = st.teams.map(t => ({ n: t.name||t.n, f: t.flag||t.f }));
   }
-
   if (res && typeof res === 'object') results = res;
 
-  initMatches(); setStatus(); render();
+  // refresh user picks from server
+  const fresh = await fetch(API + `/entries/${encodeURIComponent(user.email)}`)
+    .then(r => r.ok ? r.json() : null).catch(() => null);
+  if (fresh) {
+    user = { ...user, ...fresh };
+    sessionStorage.setItem('wcUser', JSON.stringify(user));
+    if (fresh.picks && Object.keys(fresh.picks).length) {
+      initMatches();
+      for (const [id, team] of Object.entries(fresh.picks)) if (M[id]) M[id].w = team;
+      propagate();
+    }
+  }
+
+  initMatches();
+  if (user.picks) {
+    for (const [id, team] of Object.entries(user.picks)) if (M[id]) M[id].w = team;
+    propagate();
+  }
+  setStatus(); showWelcome(); render();
   await loadEntries();
 })();
