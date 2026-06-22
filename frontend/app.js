@@ -194,8 +194,10 @@ function makeCol(ids, label) {
 
 function makeFinalCol() {
   const canPick = !locked && !tournamentStarted && !!user && !user.locked;
-  const f = M['final']; const { t1, t2, w } = f;
   const col = document.createElement('div'); col.className = 'ccol';
+
+  /* ── FINAL ── */
+  const f = M['final']; const { t1, t2, w } = f;
   const card = document.createElement('div');
   card.className = 'fin-card' + (canPick && t1 && t2 ? '' : ' mlocked');
 
@@ -214,8 +216,8 @@ function makeFinalCol() {
   const trophy = document.createElement('div'); trophy.className = 'trophy-ring'; trophy.textContent = '🏆';
   const cl = document.createElement('div'); cl.className = 'champ-lbl'; cl.textContent = 'World Champion';
   const cv = document.createElement('div'); cv.className = 'champ-val'; cv.textContent = w ? w.f+' '+w.n : '—';
-  card.append(document.createElement('div'), row, trophy, cl, cv);
-  card.children[0].className = 'finlbl'; card.children[0].textContent = 'Final';
+  const lbl = document.createElement('div'); lbl.className = 'finlbl'; lbl.textContent = 'Final';
+  card.append(lbl, row, trophy, cl, cv);
 
   if (canPick && t1 && t2) {
     [ff1, ff2].forEach((el, i) => {
@@ -223,7 +225,45 @@ function makeFinalCol() {
       el.addEventListener('click', () => pick('final', i === 0 ? t1 : t2));
     });
   }
-  col.appendChild(card); return col;
+  col.appendChild(card);
+
+  /* ── THIRD PLACE ── */
+  const tp = M['third'];
+  const { t1: tp1, t2: tp2, w: tw } = tp;
+
+  const tpCard = document.createElement('div');
+  tpCard.className = 'tp-card' + (canPick && tp1 && tp2 ? '' : ' mlocked');
+
+  const tpLbl = document.createElement('div'); tpLbl.className = 'tp-lbl'; tpLbl.textContent = '🥉 3rd Place';
+  const tpRow = document.createElement('div'); tpRow.className = 'fin-teams';
+
+  function tff(team, win, lose) {
+    const el = document.createElement('div');
+    el.className = 'fin-flag tp-flag' + (win ? ' fw' : lose ? ' fl' : !team ? ' ft' : '');
+    el.textContent = team ? team.f : '?'; return el;
+  }
+  const tw1 = tw && tp1 && tw.n === tp1.n, tl1 = tw && tp1 && !tw1;
+  const tw2 = tw && tp2 && tw.n === tp2.n, tl2 = tw && tp2 && !tw2;
+  const tff1 = tff(tp1, tw1, tl1);
+  const tpvs = document.createElement('div'); tpvs.className = 'fin-vs'; tpvs.textContent = 'VS';
+  const tff2 = tff(tp2, tw2, tl2);
+  tpRow.append(tff1, tpvs, tff2);
+
+  const tpResult = document.createElement('div'); tpResult.className = 'champ-val';
+  tpResult.style.cssText = 'font-size:11px;margin-top:4px;';
+  tpResult.textContent = tw ? tw.f+' '+tw.n : (tp1 && tp2 ? '' : 'TBD');
+
+  tpCard.append(tpLbl, tpRow, tpResult);
+
+  if (canPick && tp1 && tp2) {
+    [tff1, tff2].forEach((el, i) => {
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', () => pick('third', i === 0 ? tp1 : tp2));
+    });
+  }
+  col.appendChild(tpCard);
+
+  return col;
 }
 
 /* ════════ RENDER ════════ */
@@ -321,59 +361,6 @@ function renderTracker() {
   el.innerHTML = html || '<div class="empty">No completed rounds yet.</div>';
 }
 
-/* ════════ THIRD PLACE ════════ */
-function renderThirdPlace() {
-  const el = document.getElementById('thirdplace-content');
-  if (!el) return;
-  const m = M['third'];
-  const can = !locked && !tournamentStarted && !!user && !user.locked;
-  const { t1, t2, w } = m;
-
-  if (!t1 && !t2) {
-    el.innerHTML = '<div class="empty" style="padding:2rem;">The third place teams will be confirmed once both semi-finals are played.</div>';
-    return;
-  }
-
-  const w1 = w && t1 && w.n === t1.n, l1 = w && t1 && !w1;
-  const w2 = w && t2 && w.n === t2.n, l2 = w && t2 && !w2;
-
-  function fc(team, win, lose) {
-    return `<div class="flag-circle${win?' fc-win':lose?' fc-lose':''}" style="width:52px;height:52px;font-size:22px;">${team?team.f:'?'}</div>`;
-  }
-
-  el.innerHTML = `
-    <div class="mcard" style="max-width:380px;margin:0 auto;padding:1.5rem;">
-      <div class="mcard-teams" style="gap:12px;">
-        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
-          ${fc(t1,w1,l1)}
-          <div class="vname${w1?' vwin':l1?' vlose':''}" style="font-size:13px;text-align:center;">${t1?t1.n:'TBD'}</div>
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--t3);">3RD PLACE</div>
-          <div style="font-size:20px;">🥉</div>
-          <div class="vs-text">VS</div>
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
-          ${fc(t2,w2,l2)}
-          <div class="vname${w2?' vwin':l2?' vlose':''}" style="font-size:13px;text-align:center;">${t2?t2.n:'TBD'}</div>
-        </div>
-      </div>
-      ${w ? `<div class="winner-row" style="margin-top:12px;justify-content:center;">${w.f} ${w.n} — 3rd place 🥉</div>` : (can && t1 && t2 ? '<p style="font-size:12px;color:var(--t2);text-align:center;margin-top:12px;">Click a flag to pick the 3rd place winner</p>' : '')}
-    </div>`;
-
-  if (can && t1 && t2 && !w) {
-    const flags = el.querySelectorAll('.flag-circle');
-    flags[0].style.cursor = 'pointer';
-    flags[1].style.cursor = 'pointer';
-    flags[0].addEventListener('click', () => { M['third'].w = t1; propagate(); renderThirdPlace(); savePicks(); });
-    flags[1].addEventListener('click', () => { M['third'].w = t2; propagate(); renderThirdPlace(); savePicks(); });
-    flags[0].addEventListener('mouseenter', () => flags[0].style.borderColor = 'var(--gold)');
-    flags[0].addEventListener('mouseleave', () => flags[0].style.borderColor = '');
-    flags[1].addEventListener('mouseenter', () => flags[1].style.borderColor = 'var(--gold)');
-    flags[1].addEventListener('mouseleave', () => flags[1].style.borderColor = '');
-  }
-}
-
 /* ════════ TABS ════════ */
 function showTab(name, el) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -382,7 +369,6 @@ function showTab(name, el) {
   el.classList.add('active');
   if (name === 'entries') renderEntries();
   if (name === 'tracker') renderTracker();
-  if (name === 'thirdplace') renderThirdPlace();
 }
 
 /* ════════ ENTRY FORM ════════ */
@@ -649,6 +635,6 @@ function setMsg(el, t, type) { el.textContent = t; el.className = 'fmsg ' + type
     for (const [id, team] of Object.entries(user.picks)) if (M[id]) M[id].w = team;
     propagate();
   }
-  setStatus(); showWelcome(); render(); renderThirdPlace();
+  setStatus(); showWelcome(); render();
   await loadEntries();
 })();
