@@ -40,16 +40,11 @@ const DEMO = [
   {n:'Uruguay',f:'uy'},{n:'Iran',f:'ir'},
 ];
 
-/* Render a flag image from flagcdn.com using ISO code stored in team.f */
+/* Render a flag from embedded FLAG_DATA — no external dependency */
 function flagImg(code, size=32) {
-  if (!code) return '<span style="font-size:14px;color:var(--t3)">?</span>';
-  return `<img src="https://flagcdn.com/w${size}/${code}.png" 
-    srcset="https://flagcdn.com/w${size*2}/${code}.png 2x"
-    width="${size}" height="${Math.round(size*0.67)}" 
-    alt="${code}" 
-    style="display:block;border-radius:3px;object-fit:cover;"
-    onerror="this.style.display='none';this.nextSibling.style.display='block'"
-  /><span style="display:none;font-size:13px;">🏳</span>`;
+  if (!code || !FLAG_DATA[code]) return '<span style="font-size:16px;color:var(--t3);">🏳</span>';
+  return `<img src="${FLAG_DATA[code]}" width="${size}" height="${Math.round(size*0.67)}"
+    alt="${code}" style="display:block;object-fit:cover;border-radius:2px;"/>`;
 }
 
 /* ── State ── */
