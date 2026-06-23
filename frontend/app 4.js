@@ -159,7 +159,7 @@ async function pick(matchId, team) {
 
 async function lockMyPicks() {
   if (!user || user.locked) return;
-  if (!confirm('Lock your picks? You cannot change them after this.')) return;
+  if (!confirm('Það verður ekki hægt að breyta eftir þetta')) return;
   const r = await api(`/entries/${encodeURIComponent(user.email)}/lock`, { method: 'PUT' });
   if (r?.ok) { user.locked = true; sessionStorage.setItem('wcUser', JSON.stringify(user)); render(); }
 }
