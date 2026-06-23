@@ -193,16 +193,25 @@ function makeCard(matchId) {
     card.style.opacity = '0.45';
   }
 
-  function mkFC(team, win, lose, isPicked) {
+  // p1/p2 = I picked this team
+  const p1 = !!(myPick && t1 && myPick.n === t1.n);
+  const p2 = !!(myPick && t2 && myPick.n === t2.n);
+
+  function mkFC(team, iWon, iLost, isPicked) {
     const el = document.createElement('div');
-    el.className = 'flag-circle' + (win ? ' fc-win' : lose ? ' fc-lose' : '');
-    if (isPicked && !result) el.style.cssText = 'border-color:var(--gold);box-shadow:0 0 10px rgba(232,232,232,.2);';
+    // If result exists: green if I picked this team and they won, red if I picked and they lost
+    // If no result yet: gold border if this is my pick
+    if (result && isPicked) {
+      el.className = 'flag-circle' + (iWon ? ' fc-correct' : ' fc-wrong');
+    } else if (result) {
+      el.className = 'flag-circle' + (iWon ? ' fc-win' : iLost ? ' fc-lose' : '');
+    } else {
+      el.className = 'flag-circle' + (isPicked ? ' fc-picked' : '');
+    }
     el.textContent = team ? team.f : '?';
     return el;
   }
 
-  const p1 = !!(myPick && t1 && myPick.n === t1.n);
-  const p2 = !!(myPick && t2 && myPick.n === t2.n);
   const f1 = mkFC(t1, rw1, rl1, p1), f2 = mkFC(t2, rw2, rl2, p2);
 
   const mid = document.createElement('div'); mid.className = 'vs-mid';
@@ -277,17 +286,22 @@ function makeCentreCol() {
 
   const lbl = document.createElement('div'); lbl.className = 'finlbl'; lbl.textContent = 'Final';
 
-  function mkFF(team, win, lose) {
-    const el = document.createElement('div');
-    el.className = 'fin-flag' + (win?' fw':lose?' fl':!team?' ft':'');
-    el.textContent = team ? team.f : '?'; return el;
-  }
   const rw1=!!(result&&t1&&result.n===t1.n),rl1=!!(result&&t1&&!rw1);
   const rw2=!!(result&&t2&&result.n===t2.n),rl2=!!(result&&t2&&!rw2);
   const p1=!!(myPick&&t1&&myPick.n===t1.n), p2=!!(myPick&&t2&&myPick.n===t2.n);
-  const ff1=mkFF(t1,rw1,rl1), ff2=mkFF(t2,rw2,rl2);
-  if (p1&&!result) ff1.style.boxShadow='0 0 0 2px var(--gold)';
-  if (p2&&!result) ff2.style.boxShadow='0 0 0 2px var(--gold)';
+
+  function mkFF(team, win, lose, isPicked) {
+    const el = document.createElement('div');
+    if (result && isPicked) {
+      el.className = 'fin-flag' + (win ? ' ff-correct' : ' ff-wrong');
+    } else if (result) {
+      el.className = 'fin-flag' + (win?' fw':lose?' fl':!team?' ft':'');
+    } else {
+      el.className = 'fin-flag' + (!team?' ft': isPicked?' ff-picked':'');
+    }
+    el.textContent = team ? team.f : '?'; return el;
+  }
+  const ff1=mkFF(t1,rw1,rl1,p1), ff2=mkFF(t2,rw2,rl2,p2);
   const fvs=document.createElement('div'); fvs.className='fin-vs'; fvs.textContent='VS';
   const frow=document.createElement('div'); frow.className='fin-teams'; frow.append(ff1,fvs,ff2);
   const trophy=document.createElement('div'); trophy.className='trophy-ring'; trophy.textContent='🏆';
@@ -320,15 +334,17 @@ function makeCentreCol() {
   }
   const tpLbl=document.createElement('div'); tpLbl.className='tp-lbl'; tpLbl.textContent='🥉 3rd Place';
 
-  function mkTF(team,win,lose){ const el=document.createElement('div'); el.className='flag-circle tp-flag'+(win?' fc-win':lose?' fc-lose':''); el.textContent=team?team.f:'?'; return el; }
   const trw1=!!(tpResult&&tp1&&tpResult.n===tp1.n),trl1=!!(tpResult&&tp1&&!trw1);
   const trw2=!!(tpResult&&tp2&&tpResult.n===tp2.n),trl2=!!(tpResult&&tp2&&!trw2);
-  const tf1=mkTF(tp1,trw1,trl1), tpvs=document.createElement('div');
+  const tp1p=!!(tpPick&&tp1&&tpPick.n===tp1.n), tp2p=!!(tpPick&&tp2&&tpPick.n===tp2.n);
+  function mkTF(team,win,lose,isPicked){ const el=document.createElement('div');
+    if(tpResult&&isPicked){ el.className='flag-circle tp-flag'+(win?' fc-correct':' fc-wrong'); }
+    else if(tpResult){ el.className='flag-circle tp-flag'+(win?' fc-win':lose?' fc-lose':''); }
+    else { el.className='flag-circle tp-flag'+(isPicked?' fc-picked':''); }
+    el.textContent=team?team.f:'?'; return el; }
+  const tf1=mkTF(tp1,trw1,trl1,tp1p), tpvs=document.createElement('div');
   tpvs.className='fin-vs'; tpvs.textContent='VS';
-  const tf2=mkTF(tp2,trw2,trl2);
-  const tp1pick=!!(tpPick&&tp1&&tpPick.n===tp1.n), tp2pick=!!(tpPick&&tp2&&tpPick.n===tp2.n);
-  if (tp1pick&&!tpResult) tf1.style.borderColor='var(--gold)';
-  if (tp2pick&&!tpResult) tf2.style.borderColor='var(--gold)';
+  const tf2=mkTF(tp2,trw2,trl2,tp2p);
   const trow=document.createElement('div'); trow.className='fin-teams'; trow.append(tf1,tpvs,tf2);
   const tcv=document.createElement('div'); tcv.className='champ-val'; tcv.style.fontSize='11px';
   const tpCorrect=!!(tpPick&&tpResult&&tpPick.n===tpResult.n), tpWrong=!!(tpPick&&tpResult&&tpPick.n!==tpResult.n);
@@ -336,7 +352,7 @@ function makeCentreCol() {
   tcv.textContent=tpResult?`${tpResult.f} ${tpResult.n}${tpCorrect?' ✓':tpWrong?' ✗':''}`:tpPick?`→ ${tpPick.f} ${tpPick.n}`:(tp1&&tp2?'Pick winner':'TBD');
   tpCard.append(tpLbl,trow,tcv);
   if (tpPickable&&tp1&&tp2) {
-    [tf1,tf2].forEach((el,i)=>{ el.style.cursor='pointer'; el.addEventListener('click',()=>pick('third',i===0?tp1:tp2)); el.addEventListener('mouseenter',()=>el.style.borderColor='var(--gold)'); el.addEventListener('mouseleave',()=>{ if(!((i===0?tp1pick:tp2pick)&&!tpResult)) el.style.borderColor=''; }); });
+    [tf1,tf2].forEach((el,i)=>{ el.style.cursor='pointer'; el.addEventListener('click',()=>pick('third',i===0?tp1:tp2)); el.addEventListener('mouseenter',()=>el.style.borderColor='var(--gold)'); el.addEventListener('mouseleave',()=>el.style.borderColor=''); });
   }
   col.appendChild(tpCard);
   return col;
