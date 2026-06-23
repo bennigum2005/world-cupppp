@@ -9,7 +9,9 @@ const app      = express();
 const PORT     = process.env.PORT || 3000;
 const ROOT     = path.resolve(__dirname, '..');
 const FRONTEND = path.join(ROOT, 'frontend');
-const DB       = path.join(ROOT, 'db.json');
+/* Use Railway persistent volume at /data if available, else local fallback */
+const DATA_DIR = fs.existsSync('/data') ? '/data' : ROOT;
+const DB       = path.join(DATA_DIR, 'db.json');
 const ADMIN_PASS  = process.env.ADMIN_PASS  || 'worldcup2026';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 const BDL_KEY     = process.env.BALLDONTLIE_KEY || '7613b730-f1ee-480b-8584-063f8ad5fc57';
