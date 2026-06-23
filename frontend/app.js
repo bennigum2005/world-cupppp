@@ -22,23 +22,35 @@ const ROUND_MATCHES = {
 };
 
 const DEMO = [
-  {n:'Germany',f:'🇩🇪'},{n:'Scotland',f:'🏴󠁧󠁢󠁳󠁣󠁴󠁿'},
-  {n:'France',f:'🇫🇷'},{n:'Egypt',f:'🇪🇬'},
-  {n:'Netherlands',f:'🇳🇱'},{n:'Morocco',f:'🇲🇦'},
-  {n:'Spain',f:'🇪🇸'},{n:'Austria',f:'🇦🇹'},
-  {n:'USA',f:'🇺🇸'},{n:'Bosnia',f:'🇧🇦'},
-  {n:'Belgium',f:'🇧🇪'},{n:'S. Korea',f:'🇰🇷'},
-  {n:'Colombia',f:'🇨🇴'},{n:'Croatia',f:'🇭🇷'},
-  {n:'Canada',f:'🇨🇦'},{n:'Ivory Coast',f:'🇨🇮'},
-  {n:'Brazil',f:'🇧🇷'},{n:'Japan',f:'🇯🇵'},
-  {n:'England',f:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},{n:'Senegal',f:'🇸🇳'},
-  {n:'Argentina',f:'🇦🇷'},{n:'Ecuador',f:'🇪🇨'},
-  {n:'Portugal',f:'🇵🇹'},{n:'Turkey',f:'🇹🇷'},
-  {n:'Mexico',f:'🇲🇽'},{n:'Sweden',f:'🇸🇪'},
-  {n:'Australia',f:'🇦🇺'},{n:'Norway',f:'🇳🇴'},
-  {n:'Switzerland',f:'🇨🇭'},{n:'Algeria',f:'🇩🇿'},
-  {n:'Uruguay',f:'🇺🇾'},{n:'Iran',f:'🇮🇷'},
+  {n:'Germany',f:'de'},{n:'Scotland',f:'gb-sct'},
+  {n:'France',f:'fr'},{n:'Egypt',f:'eg'},
+  {n:'Netherlands',f:'nl'},{n:'Morocco',f:'ma'},
+  {n:'Spain',f:'es'},{n:'Austria',f:'at'},
+  {n:'USA',f:'us'},{n:'Bosnia',f:'ba'},
+  {n:'Belgium',f:'be'},{n:'S. Korea',f:'kr'},
+  {n:'Colombia',f:'co'},{n:'Croatia',f:'hr'},
+  {n:'Canada',f:'ca'},{n:'Ivory Coast',f:'ci'},
+  {n:'Brazil',f:'br'},{n:'Japan',f:'jp'},
+  {n:'England',f:'gb-eng'},{n:'Senegal',f:'sn'},
+  {n:'Argentina',f:'ar'},{n:'Ecuador',f:'ec'},
+  {n:'Portugal',f:'pt'},{n:'Turkey',f:'tr'},
+  {n:'Mexico',f:'mx'},{n:'Sweden',f:'se'},
+  {n:'Australia',f:'au'},{n:'Norway',f:'no'},
+  {n:'Switzerland',f:'ch'},{n:'Algeria',f:'dz'},
+  {n:'Uruguay',f:'uy'},{n:'Iran',f:'ir'},
 ];
+
+/* Render a flag image from flagcdn.com using ISO code stored in team.f */
+function flagImg(code, size=32) {
+  if (!code) return '<span style="font-size:14px;color:var(--t3)">?</span>';
+  return `<img src="https://flagcdn.com/w${size}/${code}.png" 
+    srcset="https://flagcdn.com/w${size*2}/${code}.png 2x"
+    width="${size}" height="${Math.round(size*0.67)}" 
+    alt="${code}" 
+    style="display:block;border-radius:3px;object-fit:cover;"
+    onerror="this.style.display='none';this.nextSibling.style.display='block'"
+  /><span style="display:none;font-size:13px;">🏳</span>`;
+}
 
 /* ── State ── */
 let user = null;
@@ -208,7 +220,7 @@ function makeCard(matchId) {
     } else {
       el.className = 'flag-circle' + (isPicked ? ' fc-picked' : '');
     }
-    el.textContent = team ? team.f : '?';
+    el.innerHTML = flagImg(team ? team.f : null);
     return el;
   }
 
@@ -228,12 +240,12 @@ function makeCard(matchId) {
   if (result) {
     const wr = document.createElement('div');
     wr.className = 'winner-row' + (correct?' correct':wrong?' wrong':'');
-    wr.innerHTML = `<span>${result.f}</span> ${result.n}${correct?' ✓':wrong?' ✗':''}`;
+    wr.innerHTML = `<span style='display:inline-flex;align-items:center;gap:4px;'>${flagImg(result.f,16)} ${result.n}${correct?' ✓':wrong?' ✗':''}</span>`;
     card.appendChild(wr);
   } else if (myPick) {
     const pr = document.createElement('div');
     pr.className = 'winner-row'; pr.style.color = 'var(--gold)';
-    pr.innerHTML = `→ ${myPick.f} ${myPick.n}`;
+    pr.innerHTML = `<span style='display:inline-flex;align-items:center;gap:4px;'>→ ${flagImg(myPick.f,16)} ${myPick.n}</span>`;
     card.appendChild(pr);
   }
 
@@ -299,7 +311,7 @@ function makeCentreCol() {
     } else {
       el.className = 'fin-flag' + (!team?' ft': isPicked?' ff-picked':'');
     }
-    el.textContent = team ? team.f : '?'; return el;
+    el.innerHTML = flagImg(team ? team.f : null); return el;
   }
   const ff1=mkFF(t1,rw1,rl1,p1), ff2=mkFF(t2,rw2,rl2,p2);
   const fvs=document.createElement('div'); fvs.className='fin-vs'; fvs.textContent='VS';
@@ -309,7 +321,7 @@ function makeCentreCol() {
   const winner = result || (myPick ? {...myPick, label: '→'} : null);
   const cv=document.createElement('div'); cv.className='champ-val';
   cv.style.color = result ? (correct?'var(--green)':wrong?'var(--red)':'var(--gold2)') : 'var(--t2)';
-  cv.textContent = result ? `${result.f} ${result.n}${correct?' ✓':wrong?' ✗':''}` : myPick ? `→ ${myPick.f} ${myPick.n}` : '—';
+  cv.innerHTML = result ? `<span style='display:inline-flex;align-items:center;gap:5px;'>${flagImg(result.f,20)} ${result.n}${correct?' ✓':wrong?' ✗':''}</span>` : myPick ? `<span style='display:inline-flex;align-items:center;gap:5px;'>→ ${flagImg(myPick.f,20)} ${myPick.n}</span>` : '—';
   card.append(lbl,frow,trophy,cl,cv);
 
   if (pickable && t1 && t2) {
@@ -341,7 +353,7 @@ function makeCentreCol() {
     if(tpResult&&isPicked){ el.className='flag-circle tp-flag'+(win?' fc-correct':' fc-wrong'); }
     else if(tpResult){ el.className='flag-circle tp-flag'+(win?' fc-win':lose?' fc-lose':''); }
     else { el.className='flag-circle tp-flag'+(isPicked?' fc-picked':''); }
-    el.textContent=team?team.f:'?'; return el; }
+    el.innerHTML=flagImg(team?team.f:null); return el; }
   const tf1=mkTF(tp1,trw1,trl1,tp1p), tpvs=document.createElement('div');
   tpvs.className='fin-vs'; tpvs.textContent='VS';
   const tf2=mkTF(tp2,trw2,trl2,tp2p);
@@ -349,7 +361,7 @@ function makeCentreCol() {
   const tcv=document.createElement('div'); tcv.className='champ-val'; tcv.style.fontSize='11px';
   const tpCorrect=!!(tpPick&&tpResult&&tpPick.n===tpResult.n), tpWrong=!!(tpPick&&tpResult&&tpPick.n!==tpResult.n);
   tcv.style.color=tpResult?(tpCorrect?'var(--green)':tpWrong?'var(--red)':'var(--gold2)'):'var(--t2)';
-  tcv.textContent=tpResult?`${tpResult.f} ${tpResult.n}${tpCorrect?' ✓':tpWrong?' ✗':''}`:tpPick?`→ ${tpPick.f} ${tpPick.n}`:(tp1&&tp2?'Pick winner':'TBD');
+  tcv.innerHTML=tpResult?`<span style='display:inline-flex;align-items:center;gap:4px;'>${flagImg(tpResult.f,16)} ${tpResult.n}${tpCorrect?' ✓':tpWrong?' ✗':''}</span>`:tpPick?`<span style='display:inline-flex;align-items:center;gap:4px;'>→ ${flagImg(tpPick.f,16)} ${tpPick.n}</span>`:(tp1&&tp2?'Pick winner':'TBD');
   tpCard.append(tpLbl,trow,tcv);
   if (tpPickable&&tp1&&tp2) {
     [tf1,tf2].forEach((el,i)=>{ el.style.cursor='pointer'; el.addEventListener('click',()=>pick('third',i===0?tp1:tp2)); el.addEventListener('mouseenter',()=>el.style.borderColor='var(--gold)'); el.addEventListener('mouseleave',()=>el.style.borderColor=''); });
