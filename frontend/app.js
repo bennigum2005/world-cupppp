@@ -1,21 +1,27 @@
 /* ══════════════════════════════════════
    2026 WORLD CUP PREDICTOR — app.js
-   Round-based: picks per round, points per correct pick, public leaderboard
+   Same bracket visual, picks locked per round,
+   1 point per correct pick, public leaderboard.
 ══════════════════════════════════════ */
 
 const API = '/api';
 
-/* Rounds in order */
-const ROUNDS = [
-  { id: 'r32',   label: 'Round of 32',    matchCount: 16 },
-  { id: 'r16',   label: 'Round of 16',    matchCount: 8  },
-  { id: 'qf',    label: 'Quarter-finals', matchCount: 4  },
-  { id: 'sf',    label: 'Semi-finals',    matchCount: 2  },
-  { id: 'third', label: '3rd Place',      matchCount: 1  },
-  { id: 'final', label: 'Final',          matchCount: 1  },
-];
+/* Round order — activeRound set by admin */
+const ROUND_ORDER = ['r32','r16','qf','sf','third','final'];
+const ROUND_LABELS = { r32:'Round of 32', r16:'Round of 16', qf:'Quarter-finals', sf:'Semi-finals', third:'3rd Place', final:'Final' };
 
-const DEMO_TEAMS = [
+/* Match IDs per round */
+const ROUND_MATCHES = {
+  r32:   ['l_r16_0','l_r16_1','l_r16_2','l_r16_3','l_r16_4','l_r16_5','l_r16_6','l_r16_7',
+           'r_r16_0','r_r16_1','r_r16_2','r_r16_3','r_r16_4','r_r16_5','r_r16_6','r_r16_7'],
+  r16:   ['l_qf_0','l_qf_1','l_qf_2','l_qf_3','r_qf_0','r_qf_1','r_qf_2','r_qf_3'],
+  qf:    ['l_sf_0','l_sf_1','r_sf_0','r_sf_1'],
+  sf:    ['l_sff','r_sff'],
+  third: ['third'],
+  final: ['final'],
+};
+
+const DEMO = [
   {n:'Germany',f:'🇩🇪'},{n:'Scotland',f:'🏴󠁧󠁢󠁳󠁣󠁴󠁿'},
   {n:'France',f:'🇫🇷'},{n:'Egypt',f:'🇪🇬'},
   {n:'Netherlands',f:'🇳🇱'},{n:'Morocco',f:'🇲🇦'},
@@ -37,14 +43,17 @@ const DEMO_TEAMS = [
 /* ── State ── */
 let user = null;
 let adminPass = sessionStorage.getItem('adminPass') || null;
-let bracketState = { locked: false, tournamentStarted: false, teams: DEMO_TEAMS.slice(), activeRound: 'r32' };
-let roundPicks = {};   // { r32: { m0: {n,f}, m1: ... }, r16: {...}, ... }
-let roundResults = {}; // { r32: { m0: {n,f}, ... }, ... } — confirmed winners from admin/API
+let locked = false, tournamentStarted = false;
+let activeRound = 'r32';   // which round is open for picking
+let teams = DEMO.slice();
+let picks = {};            // flat: { matchId: {n,f} } — user's picks
+let results = {};          // flat: { matchId: {n,f} } — confirmed results
+let M = {};                // match objects for rendering
 let entries = [];
 let currentTab = 'bracket';
 
 /* ══════════════════════════════════════
-   API HELPERS
+   API
 ══════════════════════════════════════ */
 async function api(path, opts = {}) {
   const h = { 'Content-Type': 'application/json' };
@@ -56,437 +65,508 @@ async function api(path, opts = {}) {
 }
 
 /* ══════════════════════════════════════
-   ROUND LOGIC
-   Each round's teams come from the RESULTS of the previous round.
-   If results aren't confirmed yet, teams show as TBD.
+   MATCH MAP — same bracket structure as before
 ══════════════════════════════════════ */
-function getTeamsForRound(roundId) {
-  const teams = bracketState.teams || DEMO_TEAMS.slice();
-
-  if (roundId === 'r32') {
-    // Pairs: [0v1, 2v3, 4v5, ...]
-    const matches = [];
-    for (let i = 0; i < 16; i++) {
-      matches.push({ t1: teams[i*2] || null, t2: teams[i*2+1] || null });
-    }
-    return matches;
-  }
-
-  // For subsequent rounds, use confirmed results of previous round
-  const prevRound = getPrevRound(roundId);
-  if (!prevRound) return [];
-  const prevResults = roundResults[prevRound.id] || {};
-  const prevMatches = getTeamsForRound(prevRound.id);
-  const winners = prevMatches.map((_, i) => prevResults[`m${i}`] || null);
-
-  if (roundId === 'r16') {
-    const matches = [];
-    for (let i = 0; i < 8; i++) {
-      matches.push({ t1: winners[i*2] || null, t2: winners[i*2+1] || null });
-    }
-    return matches;
-  }
-  if (roundId === 'qf') {
-    const matches = [];
-    for (let i = 0; i < 4; i++) {
-      matches.push({ t1: winners[i*2] || null, t2: winners[i*2+1] || null });
-    }
-    return matches;
-  }
-  if (roundId === 'sf') {
-    return [
-      { t1: winners[0] || null, t2: winners[1] || null },
-      { t1: winners[2] || null, t2: winners[3] || null },
-    ];
-  }
-  if (roundId === 'third') {
-    // Losers of SF
-    const sfResults = roundResults['sf'] || {};
-    const sfMatches = getTeamsForRound('sf');
-    function loser(m, res) {
-      if (!res || !m.t1 || !m.t2) return null;
-      return res.n === m.t1.n ? m.t2 : m.t1;
-    }
-    return [{ t1: loser(sfMatches[0], sfResults['m0']), t2: loser(sfMatches[1], sfResults['m1']) }];
-  }
-  if (roundId === 'final') {
-    return [{ t1: winners[0] || null, t2: winners[1] || null }];
-  }
-  return [];
+function newM(id, t1, t2, s1, s2) {
+  return { id, t1:t1||null, t2:t2||null, w:null, s1:s1||null, s2:s2||null };
 }
 
-function getPrevRound(roundId) {
-  const idx = ROUNDS.findIndex(r => r.id === roundId);
-  return idx > 0 ? ROUNDS[idx - 1] : null;
+function initMatches() {
+  M = {};
+  const T = teams;
+  for (let i=0;i<8;i++) M[`l_r16_${i}`] = newM(`l_r16_${i}`, T[i*2], T[i*2+1]);
+  for (let i=0;i<4;i++) M[`l_qf_${i}`]  = newM(`l_qf_${i}`,  null, null, `l_r16_${i*2}`, `l_r16_${i*2+1}`);
+  for (let i=0;i<2;i++) M[`l_sf_${i}`]  = newM(`l_sf_${i}`,  null, null, `l_qf_${i*2}`,  `l_qf_${i*2+1}`);
+  M['l_sff']  = newM('l_sff',  null, null, 'l_sf_0', 'l_sf_1');
+  for (let i=0;i<8;i++) M[`r_r16_${i}`] = newM(`r_r16_${i}`, T[16+i*2], T[16+i*2+1]);
+  for (let i=0;i<4;i++) M[`r_qf_${i}`]  = newM(`r_qf_${i}`,  null, null, `r_r16_${i*2}`, `r_r16_${i*2+1}`);
+  for (let i=0;i<2;i++) M[`r_sf_${i}`]  = newM(`r_sf_${i}`,  null, null, `r_qf_${i*2}`,  `r_qf_${i*2+1}`);
+  M['r_sff']  = newM('r_sff',  null, null, 'r_sf_0', 'r_sf_1');
+  M['final']  = newM('final',  null, null, 'l_sff', 'r_sff');
+  M['third']  = newM('third',  null, null, null, null);
 }
 
-function getRound(roundId) { return ROUNDS.find(r => r.id === roundId); }
+const PROP_ORDER = [
+  'l_qf_0','l_qf_1','l_qf_2','l_qf_3','l_sf_0','l_sf_1','l_sff',
+  'r_qf_0','r_qf_1','r_qf_2','r_qf_3','r_sf_0','r_sf_1','r_sff','final'
+];
 
-/* Is this round open for picking? Active round must be set by admin */
-function canPickRound(roundId) {
-  if (!user || user.locked || bracketState.tournamentStarted) return false;
-  return bracketState.activeRound === roundId;
+/* Propagate CONFIRMED RESULTS through the bracket (not user picks) */
+function propagateResults() {
+  // First apply results to R32 slots
+  for (const id of ROUND_MATCHES.r32) {
+    if (results[id]) M[id].w = results[id];
+  }
+  // Then propagate winners up
+  for (const id of PROP_ORDER) {
+    const m = M[id];
+    if (m.s1) m.t1 = M[m.s1]?.w || null;
+    if (m.s2) m.t2 = M[m.s2]?.w || null;
+    if (results[id]) m.w = results[id];
+    else m.w = null;
+  }
+  // Third place: losers of l_sff and r_sff
+  const ls = M['l_sff'], rs = M['r_sff'], tp = M['third'];
+  tp.t1 = ls.w ? (ls.w.n === ls.t1?.n ? ls.t2 : ls.t1) : null;
+  tp.t2 = rs.w ? (rs.w.n === rs.t1?.n ? rs.t2 : rs.t1) : null;
+  if (results['third']) tp.w = results['third'];
 }
 
 /* ══════════════════════════════════════
-   SCORE CALCULATION
+   ROUND LOGIC
+   A match is pickable ONLY if it's in activeRound
+   AND user hasn't locked picks AND tournament hasn't started.
+   Teams for later rounds come from CONFIRMED RESULTS only.
 ══════════════════════════════════════ */
-function calcScore(picks, results) {
+function isPickable(matchId) {
+  if (!user || user.locked || tournamentStarted) return false;
+  return (ROUND_MATCHES[activeRound] || []).includes(matchId);
+}
+
+function canPickAny() {
+  return !!(user && !user.locked && !tournamentStarted);
+}
+
+/* ══════════════════════════════════════
+   SCORE
+══════════════════════════════════════ */
+function calcScore() {
   let score = 0;
-  for (const roundId of Object.keys(picks || {})) {
-    const rPicks = picks[roundId] || {};
-    const rResults = results[roundId] || {};
-    for (const matchKey of Object.keys(rPicks)) {
-      const pick = rPicks[matchKey];
-      const result = rResults[matchKey];
-      if (pick && result && pick.n === result.n) score++;
-    }
+  for (const [id, r] of Object.entries(results)) {
+    if (picks[id] && picks[id].n === r.n) score++;
   }
   return score;
 }
 
 /* ══════════════════════════════════════
-   SAVE PICKS
+   PICKS
 ══════════════════════════════════════ */
-async function savePicks() {
-  if (!user || user.locked) return;
+async function pick(matchId, team) {
+  if (!isPickable(matchId) || !team) return;
+  picks[matchId] = team;
+  render();
   await api(`/entries/${encodeURIComponent(user.email)}/picks`, {
-    method: 'PUT',
-    body: JSON.stringify({ picks: roundPicks })
+    method: 'PUT', body: JSON.stringify({ picks })
   });
 }
 
-/* ══════════════════════════════════════
-   RENDER BRACKET TAB
-══════════════════════════════════════ */
-function renderBracket() {
-  const el = document.getElementById('panel-bracket');
-  if (!el) return;
-
-  const score = calcScore(roundPicks, roundResults);
-  const totalResults = Object.values(roundResults).reduce((s, r) => s + Object.keys(r).length, 0);
-
-  let html = `
-    <div class="wbar" id="wbar-content">
-      <div class="av" style="width:34px;height:34px;font-size:12px;">${user ? user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : '?'}</div>
-      <div style="flex:1">
-        <div class="wname">${user ? user.name : ''}</div>
-        <div class="wsub">${user ? user.email : ''} · ${user?.locked ? '🔒 Picks locked' : 'Picks open'}</div>
-      </div>
-      ${totalResults > 0 ? `<div style="text-align:right"><div style="font-size:20px;font-weight:700;color:var(--gold)">${score}</div><div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em">Points</div></div>` : ''}
-    </div>`;
-
-  // Round tabs
-  html += `<div class="round-tabs">`;
-  for (const r of ROUNDS) {
-    const isActive = bracketState.activeRound === r.id;
-    const isDone = isRoundDone(r.id);
-    const hasResults = Object.keys(roundResults[r.id] || {}).length > 0;
-    html += `<div class="round-tab${isActive ? ' rt-active' : isDone ? ' rt-done' : ''}" onclick="switchRound('${r.id}')">
-      <div class="rt-label">${r.label}</div>
-      ${hasResults ? '<div class="rt-dot rt-confirmed"></div>' : isActive ? '<div class="rt-dot rt-open"></div>' : '<div class="rt-dot rt-pending"></div>'}
-    </div>`;
-  }
-  html += `</div>`;
-
-  // Render each round section
-  for (const round of ROUNDS) {
-    html += renderRoundSection(round);
-  }
-
-  el.innerHTML = html;
-}
-
-function isRoundDone(roundId) {
-  const idx = ROUNDS.findIndex(r => r.id === roundId);
-  const activeIdx = ROUNDS.findIndex(r => r.id === bracketState.activeRound);
-  return idx < activeIdx;
-}
-
-function switchRound(roundId) {
-  // scroll to that round section
-  const el = document.getElementById(`round-${roundId}`);
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function renderRoundSection(round) {
-  const matches = getTeamsForRound(round.id);
-  const picks = roundPicks[round.id] || {};
-  const results = roundResults[round.id] || {};
-  const canPick = canPickRound(round.id);
-  const isActive = bracketState.activeRound === round.id;
-  const prevRound = getPrevRound(round.id);
-  const prevDone = !prevRound || Object.keys(roundResults[prevRound.id] || {}).length >= getRound(prevRound.id).matchCount;
-
-  let html = `<div class="round-section${isActive ? ' rs-active' : ''}" id="round-${round.id}">
-    <div class="round-header">
-      <div class="round-title">${round.label}</div>
-      <div class="round-status">`;
-
-  if (Object.keys(results).length > 0) {
-    // Count correct picks in this round
-    let correct = 0;
-    for (const k of Object.keys(results)) {
-      if (picks[k] && picks[k].n === results[k].n) correct++;
-    }
-    html += `<span class="rs-badge rs-confirmed">✓ ${correct}/${Object.keys(results).length} correct</span>`;
-  } else if (isActive) {
-    const made = Object.keys(picks).length;
-    html += `<span class="rs-badge rs-open">Picking · ${made}/${matches.length} made</span>`;
-  } else if (!prevDone) {
-    html += `<span class="rs-badge rs-pending">Waiting for previous round</span>`;
-  } else {
-    html += `<span class="rs-badge rs-pending">Not yet open</span>`;
-  }
-
-  html += `</div></div><div class="round-matches">`;
-
-  for (let i = 0; i < matches.length; i++) {
-    const { t1, t2 } = matches[i];
-    const key = `m${i}`;
-    const pick = picks[key] || null;
-    const result = results[key] || null;
-
-    const w1 = !!(result && t1 && result.n === t1.n);
-    const l1 = !!(result && t1 && !w1);
-    const w2 = !!(result && t2 && result.n === t2.n);
-    const l2 = !!(result && t2 && !w2);
-
-    const p1 = !!(pick && t1 && pick.n === t1.n);
-    const p2 = !!(pick && t2 && pick.n === t2.n);
-    const correct = !!(pick && result && pick.n === result.n);
-    const wrong = !!(pick && result && pick.n !== result.n);
-
-    html += `<div class="match-card${canPick && t1 && t2 ? ' mc-pickable' : ''}${result ? ' mc-done' : ''}">`;
-
-    // Team 1
-    html += `<div class="mc-team${w1?' mc-win':l1?' mc-lose':''}" 
-      ${canPick && t1 && t2 ? `onclick="pickMatch('${round.id}','${key}',${JSON.stringify(t1).replace(/"/g,'&quot;')})"` : ''}>
-      <div class="mc-flag${p1?' mc-picked':''}" style="${canPick&&t1&&t2?'cursor:pointer':''}">${t1 ? t1.f : '?'}</div>
-      <div class="mc-name${w1?' mc-win-name':l1?' mc-lose-name':''}">${t1 ? t1.n : 'TBD'}</div>
-    </div>`;
-
-    // VS / result
-    html += `<div class="mc-vs">`;
-    if (result) {
-      html += `<div class="mc-result-flag">${result.f}</div><div style="font-size:9px;color:var(--t3);margin-top:2px">${result.n}</div>`;
-    } else if (pick) {
-      html += `<div style="font-size:9px;font-weight:600;color:${correct?'var(--green)':wrong?'var(--red)':'var(--gold)'}">${correct?'✓':wrong?'✗':'→'} ${pick.n}</div>`;
-    } else {
-      html += `<div class="vs-txt">VS</div>`;
-    }
-    html += `</div>`;
-
-    // Team 2
-    html += `<div class="mc-team${w2?' mc-win':l2?' mc-lose':''}" 
-      ${canPick && t1 && t2 ? `onclick="pickMatch('${round.id}','${key}',${JSON.stringify(t2).replace(/"/g,'&quot;')})"` : ''}>
-      <div class="mc-flag${p2?' mc-picked':''}" style="${canPick&&t1&&t2?'cursor:pointer':''}">${t2 ? t2.f : '?'}</div>
-      <div class="mc-name${w2?' mc-win-name':l2?' mc-lose-name':''}">${t2 ? t2.n : 'TBD'}</div>
-    </div>`;
-
-    html += `</div>`; // match-card
-  }
-
-  html += `</div></div>`; // round-matches, round-section
-  return html;
-}
-
-function pickMatch(roundId, matchKey, team) {
-  if (!canPickRound(roundId)) return;
-  if (!roundPicks[roundId]) roundPicks[roundId] = {};
-  roundPicks[roundId][matchKey] = team;
-  renderBracket();
-  savePicks();
+async function lockMyPicks() {
+  if (!user || user.locked) return;
+  if (!confirm('Lock your picks? You cannot change them after this.')) return;
+  const r = await api(`/entries/${encodeURIComponent(user.email)}/lock`, { method: 'PUT' });
+  if (r?.ok) { user.locked = true; sessionStorage.setItem('wcUser', JSON.stringify(user)); render(); }
 }
 
 /* ══════════════════════════════════════
-   LEADERBOARD TAB (public)
+   BUILD MATCH CARD (same visual as before)
 ══════════════════════════════════════ */
-function renderLeaderboard() {
-  const el = document.getElementById('panel-leaderboard');
-  if (!el) return;
+function makeCard(matchId) {
+  const m = M[matchId];
+  const pickable = isPickable(matchId);
+  const { t1, t2 } = m;
+  const myPick = picks[matchId] || null;
+  const result = results[matchId] || null;
+  const inActiveRound = (ROUND_MATCHES[activeRound]||[]).includes(matchId);
 
-  if (!entries.length) {
-    el.innerHTML = '<div class="card"><div class="empty">No entries yet.</div></div>';
-    return;
+  const wrap = document.createElement('div'); wrap.className = 'mu';
+
+  /* If no teams yet (later round, results not confirmed) */
+  if (!t1 && !t2) {
+    const d = document.createElement('div'); d.className = 'tbd-card'; d.textContent = 'TBD';
+    wrap.appendChild(d); return wrap;
   }
 
-  // Score everyone
-  const scored = entries.map(e => ({
-    name: e.name,
-    email: e.email,
-    score: calcScore(e.picks || {}, roundResults),
-    locked: e.locked,
-    isMe: user && e.email === user.email,
-  })).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  const card = document.createElement('div');
+  card.className = 'mcard' + (pickable ? '' : ' mlocked');
 
-  let html = `<div class="card">
-    <div class="clabel">Leaderboard</div>
+  /* Win/lose based on CONFIRMED result */
+  const rw1 = !!(result && t1 && result.n === t1.n), rl1 = !!(result && t1 && !rw1);
+  const rw2 = !!(result && t2 && result.n === t2.n), rl2 = !!(result && t2 && !rw2);
+
+  /* My pick correctness */
+  const correct = !!(myPick && result && myPick.n === result.n);
+  const wrong   = !!(myPick && result && myPick.n !== result.n);
+
+  /* Dim non-active rounds that haven't been played yet */
+  const isPast = ROUND_ORDER.indexOf(activeRound) > ROUND_ORDER.indexOf(getRoundForMatch(matchId));
+  if (!result && !inActiveRound && !isPast) {
+    card.style.opacity = '0.45';
+  }
+
+  function mkFC(team, win, lose, isPicked) {
+    const el = document.createElement('div');
+    el.className = 'flag-circle' + (win ? ' fc-win' : lose ? ' fc-lose' : '');
+    if (isPicked && !result) el.style.cssText = 'border-color:var(--gold);box-shadow:0 0 10px rgba(232,232,232,.2);';
+    el.textContent = team ? team.f : '?';
+    return el;
+  }
+
+  const p1 = !!(myPick && t1 && myPick.n === t1.n);
+  const p2 = !!(myPick && t2 && myPick.n === t2.n);
+  const f1 = mkFC(t1, rw1, rl1, p1), f2 = mkFC(t2, rw2, rl2, p2);
+
+  const mid = document.createElement('div'); mid.className = 'vs-mid';
+  mid.innerHTML = `<div class="vs-text">VS</div>
+    <div class="vs-names">
+      <div class="vname${rw1?' vwin':rl1?' vlose':p1?' vpick':''}">${t1?t1.n:'—'}</div>
+      <div class="vname${rw2?' vwin':rl2?' vlose':p2?' vpick':''}">${t2?t2.n:'—'}</div>
+    </div>`;
+
+  const row = document.createElement('div'); row.className = 'mcard-teams';
+  row.append(f1, mid, f2); card.appendChild(row);
+
+  /* Show pick/result summary */
+  if (result) {
+    const wr = document.createElement('div');
+    wr.className = 'winner-row' + (correct?' correct':wrong?' wrong':'');
+    wr.innerHTML = `<span>${result.f}</span> ${result.n}${correct?' ✓':wrong?' ✗':''}`;
+    card.appendChild(wr);
+  } else if (myPick) {
+    const pr = document.createElement('div');
+    pr.className = 'winner-row'; pr.style.color = 'var(--gold)';
+    pr.innerHTML = `→ ${myPick.f} ${myPick.n}`;
+    card.appendChild(pr);
+  }
+
+  if (pickable && t1 && t2) {
+    [f1, f2].forEach((fc, i) => {
+      const team = i === 0 ? t1 : t2;
+      fc.style.cursor = 'pointer';
+      fc.addEventListener('click', e => { e.stopPropagation(); pick(matchId, team); });
+      fc.addEventListener('mouseenter', () => fc.style.borderColor = 'var(--gold)');
+      fc.addEventListener('mouseleave',  () => { if (!(i===0?p1:p2) || result) fc.style.borderColor = ''; });
+    });
+  }
+
+  wrap.appendChild(card); return wrap;
+}
+
+function getRoundForMatch(matchId) {
+  for (const [r, ids] of Object.entries(ROUND_MATCHES)) {
+    if (ids.includes(matchId)) return r;
+  }
+  return 'r32';
+}
+
+function makeCol(ids, label) {
+  const col = document.createElement('div'); col.className = 'rcol';
+  col.innerHTML = `<div class="rlbl">${label}</div>`;
+  const ms = document.createElement('div'); ms.className = 'rmatches';
+  for (const id of ids) ms.appendChild(makeCard(id));
+  col.appendChild(ms); return col;
+}
+
+function makeCentreCol() {
+  const col = document.createElement('div'); col.className = 'ccol';
+
+  /* FINAL */
+  const f = M['final']; const {t1,t2,w} = f;
+  const pickable = isPickable('final');
+  const myPick = picks['final'] || null;
+  const result = results['final'] || null;
+  const correct = !!(myPick && result && myPick.n === result.n);
+  const wrong   = !!(myPick && result && myPick.n !== result.n);
+
+  const card = document.createElement('div');
+  card.className = 'fin-card' + (pickable && t1 && t2 ? '' : ' mlocked');
+  if (!result && !isPickable('final') && !results['final']) {
+    const activeIdx = ROUND_ORDER.indexOf(activeRound);
+    const finalIdx  = ROUND_ORDER.indexOf('final');
+    if (activeIdx < finalIdx) card.style.opacity = '0.45';
+  }
+
+  const lbl = document.createElement('div'); lbl.className = 'finlbl'; lbl.textContent = 'Final';
+
+  function mkFF(team, win, lose) {
+    const el = document.createElement('div');
+    el.className = 'fin-flag' + (win?' fw':lose?' fl':!team?' ft':'');
+    el.textContent = team ? team.f : '?'; return el;
+  }
+  const rw1=!!(result&&t1&&result.n===t1.n),rl1=!!(result&&t1&&!rw1);
+  const rw2=!!(result&&t2&&result.n===t2.n),rl2=!!(result&&t2&&!rw2);
+  const p1=!!(myPick&&t1&&myPick.n===t1.n), p2=!!(myPick&&t2&&myPick.n===t2.n);
+  const ff1=mkFF(t1,rw1,rl1), ff2=mkFF(t2,rw2,rl2);
+  if (p1&&!result) ff1.style.boxShadow='0 0 0 2px var(--gold)';
+  if (p2&&!result) ff2.style.boxShadow='0 0 0 2px var(--gold)';
+  const fvs=document.createElement('div'); fvs.className='fin-vs'; fvs.textContent='VS';
+  const frow=document.createElement('div'); frow.className='fin-teams'; frow.append(ff1,fvs,ff2);
+  const trophy=document.createElement('div'); trophy.className='trophy-ring'; trophy.textContent='🏆';
+  const cl=document.createElement('div'); cl.className='champ-lbl'; cl.textContent='World Champion';
+  const winner = result || (myPick ? {...myPick, label: '→'} : null);
+  const cv=document.createElement('div'); cv.className='champ-val';
+  cv.style.color = result ? (correct?'var(--green)':wrong?'var(--red)':'var(--gold2)') : 'var(--t2)';
+  cv.textContent = result ? `${result.f} ${result.n}${correct?' ✓':wrong?' ✗':''}` : myPick ? `→ ${myPick.f} ${myPick.n}` : '—';
+  card.append(lbl,frow,trophy,cl,cv);
+
+  if (pickable && t1 && t2) {
+    [ff1,ff2].forEach((el,i)=>{
+      el.style.cursor='pointer';
+      el.addEventListener('click',()=>pick('final',i===0?t1:t2));
+      el.addEventListener('mouseenter',()=>el.style.boxShadow='0 0 0 2px var(--gold)');
+      el.addEventListener('mouseleave',()=>{ if(!((i===0?p1:p2)&&!result)) el.style.boxShadow=''; });
+    });
+  }
+  col.appendChild(card);
+
+  /* THIRD PLACE */
+  const tp=M['third']; const {t1:tp1,t2:tp2}=tp;
+  const tpPickable=isPickable('third');
+  const tpPick=picks['third']||null, tpResult=results['third']||null;
+  const tpCard=document.createElement('div');
+  tpCard.className='tp-card'+(tpPickable&&tp1&&tp2?'':' mlocked');
+  if (!tpResult && !tpPickable) {
+    const activeIdx=ROUND_ORDER.indexOf(activeRound), thirdIdx=ROUND_ORDER.indexOf('third');
+    if (activeIdx < thirdIdx) tpCard.style.opacity='0.45';
+  }
+  const tpLbl=document.createElement('div'); tpLbl.className='tp-lbl'; tpLbl.textContent='🥉 3rd Place';
+
+  function mkTF(team,win,lose){ const el=document.createElement('div'); el.className='flag-circle tp-flag'+(win?' fc-win':lose?' fc-lose':''); el.textContent=team?team.f:'?'; return el; }
+  const trw1=!!(tpResult&&tp1&&tpResult.n===tp1.n),trl1=!!(tpResult&&tp1&&!trw1);
+  const trw2=!!(tpResult&&tp2&&tpResult.n===tp2.n),trl2=!!(tpResult&&tp2&&!trw2);
+  const tf1=mkTF(tp1,trw1,trl1), tpvs=document.createElement('div');
+  tpvs.className='fin-vs'; tpvs.textContent='VS';
+  const tf2=mkTF(tp2,trw2,trl2);
+  const tp1pick=!!(tpPick&&tp1&&tpPick.n===tp1.n), tp2pick=!!(tpPick&&tp2&&tpPick.n===tp2.n);
+  if (tp1pick&&!tpResult) tf1.style.borderColor='var(--gold)';
+  if (tp2pick&&!tpResult) tf2.style.borderColor='var(--gold)';
+  const trow=document.createElement('div'); trow.className='fin-teams'; trow.append(tf1,tpvs,tf2);
+  const tcv=document.createElement('div'); tcv.className='champ-val'; tcv.style.fontSize='11px';
+  const tpCorrect=!!(tpPick&&tpResult&&tpPick.n===tpResult.n), tpWrong=!!(tpPick&&tpResult&&tpPick.n!==tpResult.n);
+  tcv.style.color=tpResult?(tpCorrect?'var(--green)':tpWrong?'var(--red)':'var(--gold2)'):'var(--t2)';
+  tcv.textContent=tpResult?`${tpResult.f} ${tpResult.n}${tpCorrect?' ✓':tpWrong?' ✗':''}`:tpPick?`→ ${tpPick.f} ${tpPick.n}`:(tp1&&tp2?'Pick winner':'TBD');
+  tpCard.append(tpLbl,trow,tcv);
+  if (tpPickable&&tp1&&tp2) {
+    [tf1,tf2].forEach((el,i)=>{ el.style.cursor='pointer'; el.addEventListener('click',()=>pick('third',i===0?tp1:tp2)); el.addEventListener('mouseenter',()=>el.style.borderColor='var(--gold)'); el.addEventListener('mouseleave',()=>{ if(!((i===0?tp1pick:tp2pick)&&!tpResult)) el.style.borderColor=''; }); });
+  }
+  col.appendChild(tpCard);
+  return col;
+}
+
+/* ══════════════════════════════════════
+   RENDER
+══════════════════════════════════════ */
+function render() {
+  const outer = document.getElementById('bouter'); if (!outer) return;
+  outer.innerHTML = '';
+
+  const left = document.createElement('div'); left.className = 'half hleft';
+  left.appendChild(makeCol(['l_r16_0','l_r16_1','l_r16_2','l_r16_3','l_r16_4','l_r16_5','l_r16_6','l_r16_7'],'Round of 16'));
+  left.appendChild(makeCol(['l_qf_0','l_qf_1','l_qf_2','l_qf_3'],'Quarter-finals'));
+  left.appendChild(makeCol(['l_sf_0','l_sf_1'],'Semi-finals'));
+  left.appendChild(makeCol(['l_sff'],'SF Final'));
+  outer.appendChild(left);
+
+  outer.appendChild(makeCentreCol());
+
+  const right = document.createElement('div'); right.className = 'half hright';
+  right.appendChild(makeCol(['r_sff'],'SF Final'));
+  right.appendChild(makeCol(['r_sf_0','r_sf_1'],'Semi-finals'));
+  right.appendChild(makeCol(['r_qf_0','r_qf_1','r_qf_2','r_qf_3'],'Quarter-finals'));
+  right.appendChild(makeCol(['r_r16_0','r_r16_1','r_r16_2','r_r16_3','r_r16_4','r_r16_5','r_r16_6','r_r16_7'],'Round of 16'));
+  outer.appendChild(right);
+
+  renderProg();
+  setStatus();
+}
+
+function renderProg() {
+  const s = document.getElementById('pstrip'); if (!s) return;
+  if (!user) { s.style.display='none'; return; }
+  s.style.display = 'flex';
+
+  const score = calcScore();
+  const totalResults = Object.keys(results).length;
+  const activeIds = ROUND_MATCHES[activeRound] || [];
+  const madePicks = activeIds.filter(id => picks[id]).length;
+  const roundLabel = ROUND_LABELS[activeRound] || activeRound;
+
+  const lockBtn = user.locked
+    ? '<span style="background:rgba(232,232,232,.12);color:var(--gold);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">🔒 Picks locked</span>'
+    : (!tournamentStarted ? `<button class="btn btn-p" onclick="lockMyPicks()" style="font-size:11px;padding:5px 12px;">🔒 Lock my picks</button>` : '');
+
+  s.innerHTML = `
+    <div class="pi"><div class="plbl">Active round</div><div class="pval" style="font-size:14px;">${roundLabel}</div></div>
+    <div class="pi"><div class="plbl">Picks made</div><div class="pval">${madePicks}/${activeIds.length}</div></div>
+    <div class="pi"><div class="plbl">My score</div><div class="pval">${score}${totalResults>0?`<span style="font-size:12px;color:var(--t2)"> / ${totalResults}</span>`:''}</div></div>
+    <div class="pi" style="display:flex;align-items:center;">${lockBtn}</div>`;
+}
+
+function setStatus() {
+  const b = document.getElementById('sbadge'); if (!b) return;
+  const roundLabel = ROUND_LABELS[activeRound] || '';
+  const cls   = tournamentStarted ? 'live' : locked ? 'locked' : 'open';
+  const label = tournamentStarted ? 'Tournament live' : locked ? 'Locked' : `Open · ${roundLabel}`;
+  b.className = `sbadge ${cls}`;
+  const sl = document.getElementById('slabel'); if (sl) sl.textContent = label;
+}
+
+/* ══════════════════════════════════════
+   LEADERBOARD (public)
+══════════════════════════════════════ */
+async function renderLeaderboard() {
+  const el = document.getElementById('panel-leaderboard'); if (!el) return;
+  const data = await fetch('/api/leaderboard').then(r=>r.ok?r.json():[]).catch(()=>[]);
+  if (!data.length) { el.innerHTML='<div class="card"><div class="empty">No entries yet.</div></div>'; return; }
+
+  let html = `<div class="card"><div class="clabel">🏆 Leaderboard</div>
     <table class="lb-table">
-      <thead><tr><th>#</th><th>Player</th><th>Points</th><th>Status</th></tr></thead>
-      <tbody>`;
+      <thead><tr><th style="width:44px;">#</th><th>Player</th><th style="width:70px;">Points</th><th style="width:80px;">Status</th></tr></thead><tbody>`;
 
   let rank = 1;
-  for (let i = 0; i < scored.length; i++) {
-    const e = scored[i];
-    if (i > 0 && scored[i].score < scored[i-1].score) rank = i + 1;
-    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}`;
+  for (let i = 0; i < data.length; i++) {
+    const e = data[i];
+    if (i > 0 && e.score < data[i-1].score) rank = i + 1;
+    const medal = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`;
+    const isMe = user && e.email === user.email;
     const init = e.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-    html += `<tr class="${e.isMe ? 'lb-me' : ''}">
+    html += `<tr style="${isMe?'background:rgba(232,232,232,.05);':''}">
       <td class="lb-rank">${medal}</td>
       <td><div style="display:flex;align-items:center;gap:9px;">
-        <div class="av" style="width:28px;height:28px;font-size:10px;background:${e.isMe?'var(--gold)':'var(--s3)'};color:${e.isMe?'#1a0e00':'var(--t2)'};">${init}</div>
-        <div style="font-weight:${e.isMe?'700':'500'};color:${e.isMe?'var(--gold)':'var(--text)'};">${e.name}${e.isMe?' (you)':''}</div>
+        <div class="av" style="width:28px;height:28px;font-size:10px;background:${isMe?'var(--gold)':'var(--s3)'};color:${isMe?'#111':'var(--t2)'};">${init}</div>
+        <span style="font-weight:${isMe?700:500};color:${isMe?'var(--gold)':'var(--text)'};">${e.name}${isMe?' (you)':''}</span>
       </div></td>
       <td class="lb-score">${e.score}</td>
       <td><span class="bdg ${e.locked?'bg':'bd'}">${e.locked?'🔒':'Open'}</span></td>
     </tr>`;
   }
-
   html += `</tbody></table></div>`;
   el.innerHTML = html;
 }
 
 /* ══════════════════════════════════════
-   ENTRIES TABLE (admin only)
+   ENTRIES (admin)
 ══════════════════════════════════════ */
 function renderEntries() {
-  const el = document.getElementById('panel-entries');
-  if (!el) return;
-
+  const el = document.getElementById('panel-entries'); if (!el) return;
   if (!adminPass) {
-    el.innerHTML = `<div class="card">
-      <div class="clabel">Admin access only</div>
+    el.innerHTML=`<div class="card"><div class="clabel">Admin access only</div>
       <div style="display:flex;flex-direction:column;gap:10px;max-width:300px;">
-        <input type="password" id="apass" placeholder="Admin password" style="font-family:inherit;font-size:13px;padding:9px 12px;border:1px solid var(--b2);border-radius:6px;background:var(--s2);color:var(--text);outline:none;width:100%;" onkeydown="if(event.key==='Enter')adminLogin()"/>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <button class="btn btn-p" onclick="adminLogin()">Login →</button>
-          <span style="font-size:12px;color:var(--red);display:none;" id="loginErr">Wrong password</span>
-        </div>
+        <input type="password" id="apass" placeholder="Admin password" style="font-family:inherit;font-size:13px;padding:9px 12px;border:1px solid var(--b2);border-radius:6px;background:var(--s2);color:var(--text);outline:none;" onkeydown="if(event.key==='Enter')adminLogin()"/>
+        <div style="display:flex;align-items:center;gap:10px;"><button class="btn btn-p" onclick="adminLogin()">Login →</button>
+        <span style="font-size:12px;color:var(--red);display:none;" id="loginErr">Wrong password</span></div>
       </div></div>`;
     return;
   }
+  if (!entries.length) { el.innerHTML='<div class="card"><div class="empty">No entries yet.</div></div>'; return; }
 
-  if (!entries.length) { el.innerHTML = '<div class="card"><div class="empty">No entries yet.</div></div>'; return; }
+  const scored = entries.map(e=>({...e, score: Object.entries(results).filter(([id,r])=>e.picks?.[id]?.n===r.n).length}))
+    .sort((a,b)=>b.score-a.score);
 
-  const scored = entries.map(e => ({ ...e, score: calcScore(e.picks||{}, roundResults) }))
-    .sort((a,b) => b.score - a.score);
-
-  let html = `<div class="card"><div class="clabel">All entries (${entries.length})</div>
-    <table class="etbl">
-      <thead><tr><th>Player</th><th>Score</th><th>Status</th><th>Actions</th></tr></thead><tbody>`;
-
+  let html=`<div class="card"><div class="clabel">All entries (${entries.length})</div>
+    <table class="etbl"><thead><tr><th>Player</th><th>Score</th><th>Status</th><th>Actions</th></tr></thead><tbody>`;
   for (const e of scored) {
-    const init = e.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-    const esc = e.email.replace(/'/g,"\\'");
-    html += `<tr>
-      <td><div style="display:flex;align-items:center;gap:9px;">
-        <div class="av" style="width:28px;height:28px;font-size:10px;">${init}</div>
-        <div><div style="font-weight:600;color:var(--text);">${e.name}</div><div style="font-size:10px;color:var(--t3);">${e.email}</div></div>
-      </div></td>
-      <td style="font-weight:700;color:var(--gold);font-size:16px;">${e.score}</td>
-      <td><span class="bdg ${e.locked?'bg':'bd'}">${e.locked?'🔒 Locked':'Open'}</span></td>
-      <td><div style="display:flex;gap:6px;">
-        <button class="btn btn-d" style="font-size:10px;padding:3px 8px;" onclick="adminResetEntry('${esc}')">Reset</button>
-        ${e.locked?`<button class="btn" style="font-size:10px;padding:3px 8px;" onclick="adminUnlockEntry('${esc}')">Unlock</button>`:''}
-      </div></td>
-    </tr>`;
+    const init=e.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const esc=e.email.replace(/'/g,"\\'");
+    html+=`<tr><td><div style="display:flex;align-items:center;gap:9px;">
+      <div class="av" style="width:28px;height:28px;font-size:10px;">${init}</div>
+      <div><div style="font-weight:600;color:var(--text);">${e.name}</div><div style="font-size:10px;color:var(--t3);">${e.email}</div></div>
+    </div></td>
+    <td style="font-weight:700;color:var(--gold);font-size:16px;">${e.score}</td>
+    <td><span class="bdg ${e.locked?'bg':'bd'}">${e.locked?'🔒':'Open'}</span></td>
+    <td><div style="display:flex;gap:6px;">
+      <button class="btn btn-d" style="font-size:10px;padding:3px 8px;" onclick="adminResetEntry('${esc}')">Reset</button>
+      ${e.locked?`<button class="btn" style="font-size:10px;padding:3px 8px;" onclick="adminUnlockEntry('${esc}')">Unlock</button>`:''}
+    </div></td></tr>`;
   }
-  html += `</tbody></table></div>`;
-  el.innerHTML = html;
+  html+=`</tbody></table></div>`;
+  el.innerHTML=html;
 }
 
 /* ══════════════════════════════════════
    TABS
 ══════════════════════════════════════ */
 function showTab(name, el) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.ntab').forEach(t => t.classList.remove('active'));
-  const panel = document.getElementById('panel-' + name);
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  const panel=document.getElementById('panel-'+name);
   if (panel) panel.classList.add('active');
   if (el) el.classList.add('active');
-  currentTab = name;
-  if (name === 'leaderboard') renderLeaderboard();
-  if (name === 'entries') renderEntries();
+  currentTab=name;
+  if (name==='leaderboard') renderLeaderboard();
+  if (name==='entries') renderEntries();
 }
 
 /* ══════════════════════════════════════
-   ADMIN CONTROLS
+   ADMIN
 ══════════════════════════════════════ */
 async function adminLogin() {
-  const pass = document.getElementById('apass')?.value || '';
-  const r = await api('/admin/verify', { method:'POST', body: JSON.stringify({ pass }) });
+  const pass=document.getElementById('apass')?.value||'';
+  const r=await api('/admin/verify',{method:'POST',body:JSON.stringify({pass})});
   if (r?.ok) {
-    adminPass = pass; sessionStorage.setItem('adminPass', pass);
+    adminPass=pass; sessionStorage.setItem('adminPass',pass);
     document.getElementById('abar').classList.add('on');
-    renderEntries();
+    loadEntries(); renderEntries();
   } else {
-    const err = document.getElementById('loginErr');
-    if (err) { err.style.display='inline'; setTimeout(()=>err.style.display='none',3000); }
+    const err=document.getElementById('loginErr');
+    if(err){err.style.display='inline';setTimeout(()=>err.style.display='none',3000);}
   }
 }
 
 function adminLogout() {
-  adminPass = null; sessionStorage.removeItem('adminPass');
+  adminPass=null; sessionStorage.removeItem('adminPass');
   document.getElementById('abar').classList.remove('on');
   renderEntries();
 }
 
 async function setActiveRound(roundId) {
-  bracketState.activeRound = roundId;
-  await api('/bracket-state', { method:'PUT', body: JSON.stringify({ activeRound: roundId }) });
-  renderBracket();
+  activeRound=roundId;
+  await api('/bracket-state',{method:'PUT',body:JSON.stringify({activeRound:roundId})});
+  render();
 }
 
 async function startTournament() {
-  if (!confirm('Lock all picks? No changes after this.')) return;
-  bracketState.tournamentStarted = true;
-  await api('/bracket-state', { method:'PUT', body: JSON.stringify({ tournamentStarted: true }) });
-  renderBracket();
+  if (!confirm('Lock all picks?')) return;
+  tournamentStarted=true;
+  await api('/bracket-state',{method:'PUT',body:JSON.stringify({tournamentStarted:true})});
+  render();
 }
 
 async function stopTournament() {
-  bracketState.tournamentStarted = false;
-  await api('/bracket-state', { method:'PUT', body: JSON.stringify({ tournamentStarted: false }) });
-  renderBracket();
+  tournamentStarted=false;
+  await api('/bracket-state',{method:'PUT',body:JSON.stringify({tournamentStarted:false})});
+  render();
 }
 
 async function manualSync() {
-  const btn = document.getElementById('sync-btn');
-  const st  = document.getElementById('sync-status');
-  if (btn) { btn.disabled=true; btn.textContent='↻ Syncing…'; }
-  const r = await api('/admin/sync-results', { method:'POST' });
-  if (btn) { btn.disabled=false; btn.textContent='↻ Sync results'; }
-  if (r?.ok) {
-    if (st) st.textContent = `Synced · ${r.lastSync ? new Date(r.lastSync).toLocaleTimeString() : 'now'}`;
-    await loadAll();
+  const btn=document.getElementById('sync-btn'),st=document.getElementById('sync-status');
+  if(btn){btn.disabled=true;btn.textContent='↻ Syncing…';}
+  const r=await api('/admin/sync-results',{method:'POST'});
+  if(btn){btn.disabled=false;btn.textContent='↻ Sync results';}
+  if(r?.ok){
+    if(st) st.textContent=`Synced · ${r.lastSync?new Date(r.lastSync).toLocaleTimeString():'now'}`;
+    const res=await api('/results');
+    if(res&&!res.error){results=res; propagateResults(); render();}
   }
 }
 
 async function adminResetEntry(email) {
   if (!confirm(`Reset picks for ${email}?`)) return;
-  const r = await api(`/admin/entries/${encodeURIComponent(email)}/reset`, { method:'PUT' });
-  if (r?.ok) { await loadAll(); renderEntries(); }
+  const r=await api(`/admin/entries/${encodeURIComponent(email)}/reset`,{method:'PUT'});
+  if(r?.ok){await loadEntries();renderEntries();}
 }
 
 async function adminUnlockEntry(email) {
   if (!confirm(`Unlock picks for ${email}?`)) return;
-  const r = await api(`/admin/entries/${encodeURIComponent(email)}/unlock`, { method:'PUT' });
-  if (r?.ok) { await loadAll(); renderEntries(); }
+  const r=await api(`/admin/entries/${encodeURIComponent(email)}/unlock`,{method:'PUT'});
+  if(r?.ok){await loadEntries();renderEntries();}
 }
 
 async function adminResetMyPicks() {
   if (!user) return;
-  await adminResetEntry(user.email);
-  await refreshUser();
-  renderBracket();
+  const r=await api(`/admin/entries/${encodeURIComponent(user.email)}/reset`,{method:'PUT'});
+  if(r?.ok){picks={};user.locked=false;sessionStorage.setItem('wcUser',JSON.stringify(user));render();}
 }
 
-async function lockMyPicks() {
-  if (!user || user.locked) return;
-  if (!confirm('Lock your picks? You cannot change them after this.')) return;
-  const r = await api(`/entries/${encodeURIComponent(user.email)}/lock`, { method:'PUT' });
-  if (r?.ok) { user.locked = true; sessionStorage.setItem('wcUser', JSON.stringify(user)); renderBracket(); }
+async function loadEntries() {
+  if (!adminPass) return;
+  const d=await api('/entries');
+  if(Array.isArray(d)) entries=d;
+}
+
+async function loadSyncStatus() {
+  const r=await api('/admin/sync-status');
+  const st=document.getElementById('sync-status');
+  if(r&&st) st.textContent=`Last sync: ${r.lastSync?new Date(r.lastSync).toLocaleTimeString():'never'}`;
 }
 
 /* ══════════════════════════════════════
@@ -494,64 +574,52 @@ async function lockMyPicks() {
 ══════════════════════════════════════ */
 function logout() {
   sessionStorage.removeItem('wcUser');
-  window.location.href = '/';
-}
-
-async function refreshUser() {
-  if (!user) return;
-  const fresh = await fetch(`${API}/entries/${encodeURIComponent(user.email)}`).then(r=>r.ok?r.json():null).catch(()=>null);
-  if (fresh && !fresh.error) {
-    user = { ...user, ...fresh };
-    sessionStorage.setItem('wcUser', JSON.stringify(user));
-    roundPicks = fresh.picks || {};
-  }
-}
-
-async function loadAll() {
-  const [st, res, ents] = await Promise.all([
-    api('/bracket-state'),
-    api('/results'),
-    adminPass ? api('/entries') : fetch(`${API}/leaderboard`).then(r=>r.ok?r.json():[]).catch(()=>[]),
-  ]);
-
-  if (st && !st.error) bracketState = { ...bracketState, ...st };
-  if (res && !res.error) roundResults = res;
-  if (Array.isArray(ents)) entries = ents;
-
-  updateAdminRoundSelector();
-}
-
-function updateAdminRoundSelector() {
-  const sel = document.getElementById('round-selector');
-  if (!sel) return;
-  sel.value = bracketState.activeRound || 'r32';
+  window.location.href='/';
 }
 
 /* ══════════════════════════════════════
    BOOT
 ══════════════════════════════════════ */
 (async function init() {
-  let sessionUser = null;
-  try { sessionUser = JSON.parse(sessionStorage.getItem('wcUser')); } catch {}
-  if (!sessionUser) { window.location.href = '/login'; return; }
-  user = sessionUser;
+  let sessionUser=null;
+  try{sessionUser=JSON.parse(sessionStorage.getItem('wcUser'));}catch{}
+  if(!sessionUser){window.location.href='/login';return;}
+  user=sessionUser;
 
-  document.getElementById('logout-btn').style.display = 'block';
+  document.getElementById('logout-btn').style.display='block';
 
   if (user.isAdmin) {
-    if (adminPass) { document.getElementById('abar').classList.add('on'); }
-    document.getElementById('tab-entries').style.display = '';
+    if(adminPass){document.getElementById('abar').classList.add('on');loadSyncStatus();}
+    document.getElementById('tab-entries').style.display='';
   }
 
-  await loadAll();
-  await refreshUser();
+  /* Render immediately with defaults */
+  teams=DEMO.slice(); locked=false; tournamentStarted=false; activeRound='r32';
+  initMatches(); render();
 
-  renderBracket();
+  /* Fetch server state */
+  const [st,res]=await Promise.all([api('/bracket-state'),api('/results')]);
+  if(st&&!st.error){
+    locked=!!st.locked; tournamentStarted=!!st.tournamentStarted;
+    activeRound=st.activeRound||'r32';
+    if(st.teams&&st.teams.length===32) teams=st.teams.map(t=>({n:t.name||t.n,f:t.flag||t.f}));
+  }
+  if(res&&!res.error) results=res;
 
-  // Auto-refresh leaderboard every 60s
-  setInterval(async () => {
-    await loadAll();
-    if (currentTab === 'leaderboard') renderLeaderboard();
-    if (currentTab === 'bracket') renderBracket();
-  }, 60000);
+  /* Sync admin round selector */
+  const sel=document.getElementById('round-selector');
+  if(sel) sel.value=activeRound;
+
+  /* Fetch user's picks */
+  const fresh=await fetch(`${API}/entries/${encodeURIComponent(user.email)}`).then(r=>r.ok?r.json():null).catch(()=>null);
+  if(fresh&&!fresh.error){
+    user={...user,...fresh};
+    sessionStorage.setItem('wcUser',JSON.stringify(user));
+    picks=fresh.picks||{};
+  }
+
+  initMatches();
+  propagateResults();
+  render();
+  if(adminPass) loadEntries();
 })();
