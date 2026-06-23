@@ -1,5 +1,4 @@
 const API = '/api';
-const WC_API = 'https://worldcup26.ir';
 
 const DEMO = [
   {n:'Germany',    f:'🇩🇪'}, {n:'Scotland',   f:'🏴󠁧󠁢󠁳󠁣󠁴󠁿'},
@@ -475,7 +474,7 @@ function showEntriesTable() {
   const list = document.getElementById('elist'); if (!list) return;
   if (!entries.length) { list.innerHTML = '<div class="empty">No entries yet.</div>'; return; }
   const rows = entries.map(e => {
-    const p = Object.keys(e.picks||{}).length, pct = Math.round((p/31)*100);
+    const p = Object.keys(e.picks||{}).length, pct = Math.round((p/32)*100);
     const init = e.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     const saved = e.lastSaved ? new Date(e.lastSaved).toLocaleDateString() : '—';
     const escapedEmail = e.email.replace(/'/g, "\'");
@@ -499,7 +498,7 @@ function showEntriesTable() {
         <div style="flex:1;height:3px;background:var(--b2);border-radius:2px;min-width:50px;">
           <div style="height:3px;background:var(--gold);border-radius:2px;width:${pct}%;"></div>
         </div>
-        <span class="bdg ${p===31?'bg':p>0?'bgg':'bd'}">${p}/31</span>
+        <span class="bdg ${p===32?'bg':p>0?'bgg':'bd'}">${p}/32</span>
       </div></td>
       <td style="color:var(--t3);font-size:11px;">${saved}</td>
       <td>${actions}</td>
@@ -538,38 +537,30 @@ async function resetPicks() {
   const r = await api(`/admin/entries/${encodeURIComponent(user.email)}/reset`, { method: 'PUT' });
   if (r?.ok) await refreshUser();
 }
-async function syncResults() {
-  // fetch knockout results from free WC API
-  try {
-    const r = await fetch(WC_API + '/get/games');
-    const data = await r.json();
-    const newResults = {};
-    // map API results to our match IDs — only knockout matches with a winner
-    const knockout = (data.matches || data).filter(m =>
-      m.round && (m.round.toLowerCase().includes('16') || m.round.toLowerCase().includes('quarter') ||
-                  m.round.toLowerCase().includes('semi') || m.round.toLowerCase().includes('final')) &&
-      m.score && (m.score.ft || m.score.fulltime)
-    );
-    // store by team names — we'll match them up
-    knockout.forEach(m => {
-      const score = m.score?.ft || m.score?.fulltime || [0,0];
-      if (score[0] === score[1]) return; // draw — needs extra time handling
-      const winner = score[0] > score[1] ? m.team1 : m.team2;
-      // find matching bracket match
-      for (const [id, bm] of Object.entries(M)) {
-        if (bm.t1 && bm.t2 &&
-            ((bm.t1.n.toLowerCase().includes(m.team1?.toLowerCase()) || m.team1?.toLowerCase().includes(bm.t1.n.toLowerCase())) &&
-             (bm.t2.n.toLowerCase().includes(m.team2?.toLowerCase()) || m.team2?.toLowerCase().includes(bm.t2.n.toLowerCase())))) {
-          newResults[id] = { n: winner, f: score[0] > score[1] ? bm.t1.f : bm.t2.f };
-        }
-      }
-    });
-    if (Object.keys(newResults).length) {
-      results = { ...results, ...newResults };
-      await api('/results', { method:'PUT', body:JSON.stringify({results}) });
-      renderTracker(); alert(`Synced ${Object.keys(newResults).length} result(s)!`);
-    } else { alert('No new results found yet.'); }
-  } catch(e) { alert('Could not reach results API. Try again later.'); }
+async function manualSync() {
+  const btn    = document.getElementById('sync-btn');
+  const status = document.getElementById('sync-status');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Syncing…'; }
+  const r = await api('/admin/sync-results', { method: 'POST' });
+  if (btn) { btn.disabled = false; btn.textContent = '↻ Sync results now'; }
+  if (r?.ok) {
+    const syncTime = r.lastSync ? new Date(r.lastSync).toLocaleTimeString() : 'just now';
+    if (status) status.textContent = `Last sync: ${syncTime}`;
+    // reload results
+    const res = await api('/results');
+    if (res && typeof res === 'object') { results = res; render(); renderTracker(); }
+  } else {
+    if (status) status.textContent = 'Sync failed';
+  }
+}
+
+async function loadSyncStatus() {
+  const r = await api('/admin/sync-status');
+  const status = document.getElementById('sync-status');
+  if (r && status) {
+    const syncTime = r.lastSync ? new Date(r.lastSync).toLocaleTimeString() : 'never';
+    status.textContent = `Last sync: ${syncTime} · ${r.resultCount} results`;
+  }
 }
 
 /* ════════ HELPERS ════════ */
@@ -593,7 +584,10 @@ function setMsg(el, t, type) { el.textContent = t; el.className = 'fmsg ' + type
 
   // show admin tabs and bar only for admin accounts
   if (user.isAdmin) {
-    if (adminPass) document.getElementById('abar').classList.add('on');
+    if (adminPass) {
+      document.getElementById('abar').classList.add('on');
+      loadSyncStatus();
+    }
     const tt = document.getElementById('tab-tracker');
     const te = document.getElementById('tab-entries');
     if (tt) tt.style.display = '';
