@@ -1,10 +1,21 @@
 /* ══════════════════════════════════════
    2026 WORLD CUP PREDICTOR — app.js
+   Round-based: picks per round, points per correct pick, public leaderboard
 ══════════════════════════════════════ */
-const API = '/api';
-const TOTAL_PICKS = 32; // 31 bracket matches + 1 third place
 
-const DEMO = [
+const API = '/api';
+
+/* Rounds in order */
+const ROUNDS = [
+  { id: 'r32',   label: 'Round of 32',    matchCount: 16 },
+  { id: 'r16',   label: 'Round of 16',    matchCount: 8  },
+  { id: 'qf',    label: 'Quarter-finals', matchCount: 4  },
+  { id: 'sf',    label: 'Semi-finals',    matchCount: 2  },
+  { id: 'third', label: '3rd Place',      matchCount: 1  },
+  { id: 'final', label: 'Final',          matchCount: 1  },
+];
+
+const DEMO_TEAMS = [
   {n:'Germany',f:'🇩🇪'},{n:'Scotland',f:'🏴󠁧󠁢󠁳󠁣󠁴󠁿'},
   {n:'France',f:'🇫🇷'},{n:'Egypt',f:'🇪🇬'},
   {n:'Netherlands',f:'🇳🇱'},{n:'Morocco',f:'🇲🇦'},
@@ -24,317 +35,365 @@ const DEMO = [
 ];
 
 /* ── State ── */
-let locked = false, tournamentStarted = false;
-let user = null, entries = [], teams = DEMO.slice(), results = {};
+let user = null;
 let adminPass = sessionStorage.getItem('adminPass') || null;
-let M = {}; // match map
+let bracketState = { locked: false, tournamentStarted: false, teams: DEMO_TEAMS.slice(), activeRound: 'r32' };
+let roundPicks = {};   // { r32: { m0: {n,f}, m1: ... }, r16: {...}, ... }
+let roundResults = {}; // { r32: { m0: {n,f}, ... }, ... } — confirmed winners from admin/API
+let entries = [];
+let currentTab = 'bracket';
 
 /* ══════════════════════════════════════
-   MATCH MAP
-   Bracket structure:
-   Left:  l_r16_0..7 → l_qf_0..3 → l_sf_0..1 → l_sff (left finalist)
-   Right: r_r16_0..7 → r_qf_0..3 → r_sf_0..1 → r_sff (right finalist)
-   Final: l_sff winner vs r_sff winner
-   Third: l_sff loser  vs r_sff loser
-══════════════════════════════════════ */
-function newM(id, t1, t2, s1, s2) {
-  return { id, t1: t1||null, t2: t2||null, w: null, s1: s1||null, s2: s2||null };
-}
-
-function initMatches() {
-  M = {};
-  const T = teams;
-  // left R16
-  for (let i = 0; i < 8; i++) M[`l_r16_${i}`] = newM(`l_r16_${i}`, T[i*2], T[i*2+1]);
-  // left QF
-  for (let i = 0; i < 4; i++) M[`l_qf_${i}`] = newM(`l_qf_${i}`, null, null, `l_r16_${i*2}`, `l_r16_${i*2+1}`);
-  // left SF
-  for (let i = 0; i < 2; i++) M[`l_sf_${i}`] = newM(`l_sf_${i}`, null, null, `l_qf_${i*2}`, `l_qf_${i*2+1}`);
-  // left SF Final (2 SF winners → 1 left finalist)
-  M['l_sff'] = newM('l_sff', null, null, 'l_sf_0', 'l_sf_1');
-  // right R16
-  for (let i = 0; i < 8; i++) M[`r_r16_${i}`] = newM(`r_r16_${i}`, T[16+i*2], T[16+i*2+1]);
-  // right QF
-  for (let i = 0; i < 4; i++) M[`r_qf_${i}`] = newM(`r_qf_${i}`, null, null, `r_r16_${i*2}`, `r_r16_${i*2+1}`);
-  // right SF
-  for (let i = 0; i < 2; i++) M[`r_sf_${i}`] = newM(`r_sf_${i}`, null, null, `r_qf_${i*2}`, `r_qf_${i*2+1}`);
-  // right SF Final
-  M['r_sff'] = newM('r_sff', null, null, 'r_sf_0', 'r_sf_1');
-  // The Final
-  M['final'] = newM('final', null, null, 'l_sff', 'r_sff');
-  // Third place (losers of l_sff and r_sff — set in propagate)
-  M['third'] = newM('third', null, null, null, null);
-}
-
-const PROP_ORDER = [
-  'l_qf_0','l_qf_1','l_qf_2','l_qf_3',
-  'l_sf_0','l_sf_1','l_sff',
-  'r_qf_0','r_qf_1','r_qf_2','r_qf_3',
-  'r_sf_0','r_sf_1','r_sff',
-  'final'
-];
-
-function propagate() {
-  for (const id of PROP_ORDER) {
-    const m = M[id];
-    m.t1 = M[m.s1]?.w || null;
-    m.t2 = M[m.s2]?.w || null;
-    if (m.w && m.t1 && m.t2 && m.w.n !== m.t1.n && m.w.n !== m.t2.n) m.w = null;
-    else if (m.w && (!m.t1 || !m.t2)) m.w = null;
-  }
-  // Third place: losers of l_sff and r_sff
-  const ls = M['l_sff'], rs = M['r_sff'], tp = M['third'];
-  tp.t1 = ls.w ? (ls.w.n === ls.t1?.n ? ls.t2 : ls.t1) : null;
-  tp.t2 = rs.w ? (rs.w.n === rs.t1?.n ? rs.t2 : rs.t1) : null;
-  if (tp.w && tp.t1 && tp.t2 && tp.w.n !== tp.t1.n && tp.w.n !== tp.t2.n) tp.w = null;
-  else if (tp.w && (!tp.t1 || !tp.t2)) tp.w = null;
-}
-
-/* ══════════════════════════════════════
-   API
+   API HELPERS
 ══════════════════════════════════════ */
 async function api(path, opts = {}) {
   const h = { 'Content-Type': 'application/json' };
   if (adminPass) h['x-admin-pass'] = adminPass;
   try {
     const r = await fetch(API + path, { headers: h, ...opts });
-    if (!r.ok) { const e = await r.json().catch(() => ({})); throw e; }
     return r.json();
-  } catch(e) { return e || null; }
+  } catch(e) { return null; }
 }
 
 /* ══════════════════════════════════════
-   PICKS
+   ROUND LOGIC
+   Each round's teams come from the RESULTS of the previous round.
+   If results aren't confirmed yet, teams show as TBD.
 ══════════════════════════════════════ */
-function canPick() { return !locked && !tournamentStarted && !!user && !user.locked; }
+function getTeamsForRound(roundId) {
+  const teams = bracketState.teams || DEMO_TEAMS.slice();
 
-async function pick(matchId, team) {
-  if (!canPick() || !team) return;
-  const m = M[matchId]; if (!m) return;
-  m.w = team; propagate(); render(); await savePicks();
+  if (roundId === 'r32') {
+    // Pairs: [0v1, 2v3, 4v5, ...]
+    const matches = [];
+    for (let i = 0; i < 16; i++) {
+      matches.push({ t1: teams[i*2] || null, t2: teams[i*2+1] || null });
+    }
+    return matches;
+  }
+
+  // For subsequent rounds, use confirmed results of previous round
+  const prevRound = getPrevRound(roundId);
+  if (!prevRound) return [];
+  const prevResults = roundResults[prevRound.id] || {};
+  const prevMatches = getTeamsForRound(prevRound.id);
+  const winners = prevMatches.map((_, i) => prevResults[`m${i}`] || null);
+
+  if (roundId === 'r16') {
+    const matches = [];
+    for (let i = 0; i < 8; i++) {
+      matches.push({ t1: winners[i*2] || null, t2: winners[i*2+1] || null });
+    }
+    return matches;
+  }
+  if (roundId === 'qf') {
+    const matches = [];
+    for (let i = 0; i < 4; i++) {
+      matches.push({ t1: winners[i*2] || null, t2: winners[i*2+1] || null });
+    }
+    return matches;
+  }
+  if (roundId === 'sf') {
+    return [
+      { t1: winners[0] || null, t2: winners[1] || null },
+      { t1: winners[2] || null, t2: winners[3] || null },
+    ];
+  }
+  if (roundId === 'third') {
+    // Losers of SF
+    const sfResults = roundResults['sf'] || {};
+    const sfMatches = getTeamsForRound('sf');
+    function loser(m, res) {
+      if (!res || !m.t1 || !m.t2) return null;
+      return res.n === m.t1.n ? m.t2 : m.t1;
+    }
+    return [{ t1: loser(sfMatches[0], sfResults['m0']), t2: loser(sfMatches[1], sfResults['m1']) }];
+  }
+  if (roundId === 'final') {
+    return [{ t1: winners[0] || null, t2: winners[1] || null }];
+  }
+  return [];
 }
 
+function getPrevRound(roundId) {
+  const idx = ROUNDS.findIndex(r => r.id === roundId);
+  return idx > 0 ? ROUNDS[idx - 1] : null;
+}
+
+function getRound(roundId) { return ROUNDS.find(r => r.id === roundId); }
+
+/* Is this round open for picking? Active round must be set by admin */
+function canPickRound(roundId) {
+  if (!user || user.locked || bracketState.tournamentStarted) return false;
+  return bracketState.activeRound === roundId;
+}
+
+/* ══════════════════════════════════════
+   SCORE CALCULATION
+══════════════════════════════════════ */
+function calcScore(picks, results) {
+  let score = 0;
+  for (const roundId of Object.keys(picks || {})) {
+    const rPicks = picks[roundId] || {};
+    const rResults = results[roundId] || {};
+    for (const matchKey of Object.keys(rPicks)) {
+      const pick = rPicks[matchKey];
+      const result = rResults[matchKey];
+      if (pick && result && pick.n === result.n) score++;
+    }
+  }
+  return score;
+}
+
+/* ══════════════════════════════════════
+   SAVE PICKS
+══════════════════════════════════════ */
 async function savePicks() {
   if (!user || user.locked) return;
-  const picks = {};
-  for (const [id, m] of Object.entries(M)) if (m.w) picks[id] = m.w;
-  const champion = M['final'].w || null;
   await api(`/entries/${encodeURIComponent(user.email)}/picks`, {
-    method: 'PUT', body: JSON.stringify({ picks, champion })
+    method: 'PUT',
+    body: JSON.stringify({ picks: roundPicks })
   });
-  const i = entries.findIndex(e => e.email === user.email);
-  if (i >= 0) { entries[i].picks = picks; entries[i].champion = champion; }
-}
-
-async function lockMyPicks() {
-  if (!user || user.locked) return;
-  if (!confirm('Lock your picks permanently? You won\'t be able to change them after this.')) return;
-  const r = await api(`/entries/${encodeURIComponent(user.email)}/lock`, { method: 'PUT' });
-  if (r?.ok) { user.locked = true; showWelcome(); render(); }
-}
-
-async function refreshUser() {
-  if (!user) return;
-  const fresh = await fetch(`${API}/entries/${encodeURIComponent(user.email)}`).then(r => r.ok ? r.json() : null).catch(() => null);
-  if (!fresh || fresh.error) return;
-  user = { ...user, ...fresh };
-  sessionStorage.setItem('wcUser', JSON.stringify(user));
-  initMatches();
-  if (fresh.picks) { for (const [id, t] of Object.entries(fresh.picks)) if (M[id]) M[id].w = t; }
-  propagate(); showWelcome(); render();
 }
 
 /* ══════════════════════════════════════
-   BUILD MATCH CARD
+   RENDER BRACKET TAB
 ══════════════════════════════════════ */
-function makeCard(matchId) {
-  const m = M[matchId];
-  const can = canPick();
-  const { t1, t2, w } = m;
-  const wrap = document.createElement('div'); wrap.className = 'mu';
+function renderBracket() {
+  const el = document.getElementById('panel-bracket');
+  if (!el) return;
 
-  if (!t1 && !t2) {
-    const d = document.createElement('div'); d.className = 'tbd-card'; d.textContent = 'TBD';
-    wrap.appendChild(d); return wrap;
-  }
+  const score = calcScore(roundPicks, roundResults);
+  const totalResults = Object.values(roundResults).reduce((s, r) => s + Object.keys(r).length, 0);
 
-  const card = document.createElement('div');
-  card.className = 'mcard' + (can && t1 && t2 ? '' : ' mlocked');
-
-  const w1 = !!(w && t1 && w.n === t1.n), l1 = !!(w && t1 && !w1);
-  const w2 = !!(w && t2 && w.n === t2.n), l2 = !!(w && t2 && !w2);
-  const real = results[matchId] || null;
-  const correct = !!(w && real && w.n === real.n);
-  const wrong   = !!(w && real && w.n !== real.n);
-
-  function mkFC(team, win, lose) {
-    const el = document.createElement('div');
-    el.className = 'flag-circle' + (win ? ' fc-win' : lose ? ' fc-lose' : '');
-    el.textContent = team ? team.f : '?'; return el;
-  }
-  const f1 = mkFC(t1, w1, l1), f2 = mkFC(t2, w2, l2);
-
-  const mid = document.createElement('div'); mid.className = 'vs-mid';
-  mid.innerHTML = `<div class="vs-text">VS</div>
-    <div class="vs-names">
-      <div class="vname${w1?' vwin':l1?' vlose':''}">${t1 ? t1.n : '—'}</div>
-      <div class="vname${w2?' vwin':l2?' vlose':''}">${t2 ? t2.n : '—'}</div>
+  let html = `
+    <div class="wbar" id="wbar-content">
+      <div class="av" style="width:34px;height:34px;font-size:12px;">${user ? user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : '?'}</div>
+      <div style="flex:1">
+        <div class="wname">${user ? user.name : ''}</div>
+        <div class="wsub">${user ? user.email : ''} · ${user?.locked ? '🔒 Picks locked' : 'Picks open'}</div>
+      </div>
+      ${totalResults > 0 ? `<div style="text-align:right"><div style="font-size:20px;font-weight:700;color:var(--gold)">${score}</div><div style="font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em">Points</div></div>` : ''}
     </div>`;
 
-  const row = document.createElement('div'); row.className = 'mcard-teams';
-  row.append(f1, mid, f2); card.appendChild(row);
+  // Round tabs
+  html += `<div class="round-tabs">`;
+  for (const r of ROUNDS) {
+    const isActive = bracketState.activeRound === r.id;
+    const isDone = isRoundDone(r.id);
+    const hasResults = Object.keys(roundResults[r.id] || {}).length > 0;
+    html += `<div class="round-tab${isActive ? ' rt-active' : isDone ? ' rt-done' : ''}" onclick="switchRound('${r.id}')">
+      <div class="rt-label">${r.label}</div>
+      ${hasResults ? '<div class="rt-dot rt-confirmed"></div>' : isActive ? '<div class="rt-dot rt-open"></div>' : '<div class="rt-dot rt-pending"></div>'}
+    </div>`;
+  }
+  html += `</div>`;
 
-  if (w) {
-    const wr = document.createElement('div');
-    wr.className = 'winner-row' + (correct ? ' correct' : wrong ? ' wrong' : '');
-    wr.innerHTML = `<span>${w.f}</span> ${w.n}${correct ? ' ✓' : wrong ? ' ✗' : ''}`;
-    card.appendChild(wr);
+  // Render each round section
+  for (const round of ROUNDS) {
+    html += renderRoundSection(round);
   }
 
-  if (can && t1 && t2) {
-    [f1, f2].forEach((fc, i) => {
-      const team = i === 0 ? t1 : t2;
-      fc.style.cursor = 'pointer';
-      fc.addEventListener('click', e => { e.stopPropagation(); pick(matchId, team); });
-      fc.addEventListener('mouseenter', () => fc.style.borderColor = 'var(--gold)');
-      fc.addEventListener('mouseleave',  () => fc.style.borderColor = '');
-    });
-  }
-  wrap.appendChild(card); return wrap;
+  el.innerHTML = html;
 }
 
-function makeCol(ids, label) {
-  const col = document.createElement('div'); col.className = 'rcol';
-  col.innerHTML = `<div class="rlbl">${label}</div>`;
-  const ms = document.createElement('div'); ms.className = 'rmatches';
-  for (const id of ids) ms.appendChild(makeCard(id));
-  col.appendChild(ms); return col;
+function isRoundDone(roundId) {
+  const idx = ROUNDS.findIndex(r => r.id === roundId);
+  const activeIdx = ROUNDS.findIndex(r => r.id === bracketState.activeRound);
+  return idx < activeIdx;
 }
 
-function makeCentreCol() {
-  const can = canPick();
-  const col = document.createElement('div'); col.className = 'ccol';
-
-  /* — FINAL — */
-  const f = M['final']; const { t1, t2, w } = f;
-  const card = document.createElement('div');
-  card.className = 'fin-card' + (can && t1 && t2 ? '' : ' mlocked');
-  const lbl = document.createElement('div'); lbl.className = 'finlbl'; lbl.textContent = 'Final';
-
-  function mkFF(team, win, lose) {
-    const el = document.createElement('div');
-    el.className = 'fin-flag' + (win ? ' fw' : lose ? ' fl' : !team ? ' ft' : '');
-    el.textContent = team ? team.f : '?'; return el;
-  }
-  const w1 = !!(w && t1 && w.n === t1.n), l1 = !!(w && t1 && !w1);
-  const w2 = !!(w && t2 && w.n === t2.n), l2 = !!(w && t2 && !w2);
-  const ff1 = mkFF(t1, w1, l1), ff2 = mkFF(t2, w2, l2);
-  const fvs = document.createElement('div'); fvs.className = 'fin-vs'; fvs.textContent = 'VS';
-  const frow = document.createElement('div'); frow.className = 'fin-teams'; frow.append(ff1, fvs, ff2);
-  const trophy = document.createElement('div'); trophy.className = 'trophy-ring'; trophy.textContent = '🏆';
-  const cl = document.createElement('div'); cl.className = 'champ-lbl'; cl.textContent = 'World Champion';
-  const cv = document.createElement('div'); cv.className = 'champ-val'; cv.textContent = w ? `${w.f} ${w.n}` : '—';
-  card.append(lbl, frow, trophy, cl, cv);
-  if (can && t1 && t2) {
-    [ff1, ff2].forEach((el, i) => {
-      el.style.cursor = 'pointer';
-      el.addEventListener('click', () => pick('final', i === 0 ? t1 : t2));
-      el.addEventListener('mouseenter', () => el.style.boxShadow = '0 0 0 2px var(--gold)');
-      el.addEventListener('mouseleave',  () => el.style.boxShadow = '');
-    });
-  }
-  col.appendChild(card);
-
-  /* — THIRD PLACE — */
-  const tp = M['third']; const { t1: tp1, t2: tp2, w: tw } = tp;
-  const tpCard = document.createElement('div');
-  tpCard.className = 'tp-card' + (can && tp1 && tp2 ? '' : ' mlocked');
-  const tpLbl = document.createElement('div'); tpLbl.className = 'tp-lbl'; tpLbl.textContent = '🥉 3rd Place';
-
-  function mkTF(team, win, lose) {
-    const el = document.createElement('div');
-    el.className = 'flag-circle tp-flag' + (win ? ' fc-win' : lose ? ' fc-lose' : !team ? '' : '');
-    el.textContent = team ? team.f : '?'; return el;
-  }
-  const tw1 = !!(tw && tp1 && tw.n === tp1.n), tl1 = !!(tw && tp1 && !tw1);
-  const tw2 = !!(tw && tp2 && tw.n === tp2.n), tl2 = !!(tw && tp2 && !tw2);
-  const tf1 = mkTF(tp1, tw1, tl1), tf2 = mkTF(tp2, tw2, tl2);
-  const tvs = document.createElement('div'); tvs.className = 'fin-vs'; tvs.textContent = 'VS';
-  const trow = document.createElement('div'); trow.className = 'fin-teams'; trow.append(tf1, tvs, tf2);
-  const tcv = document.createElement('div'); tcv.className = 'champ-val';
-  tcv.style.fontSize = '11px';
-  tcv.textContent = tw ? `${tw.f} ${tw.n}` : (tp1 && tp2 ? '' : 'TBD');
-  tpCard.append(tpLbl, trow, tcv);
-
-  if (can && tp1 && tp2) {
-    [tf1, tf2].forEach((el, i) => {
-      el.style.cursor = 'pointer';
-      el.addEventListener('click', () => pick('third', i === 0 ? tp1 : tp2));
-      el.addEventListener('mouseenter', () => el.style.borderColor = 'var(--gold)');
-      el.addEventListener('mouseleave',  () => el.style.borderColor = '');
-    });
-  }
-  col.appendChild(tpCard);
-  return col;
+function switchRound(roundId) {
+  // scroll to that round section
+  const el = document.getElementById(`round-${roundId}`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-/* ══════════════════════════════════════
-   RENDER
-══════════════════════════════════════ */
-function render() {
-  const outer = document.getElementById('bouter'); if (!outer) return;
-  outer.innerHTML = '';
+function renderRoundSection(round) {
+  const matches = getTeamsForRound(round.id);
+  const picks = roundPicks[round.id] || {};
+  const results = roundResults[round.id] || {};
+  const canPick = canPickRound(round.id);
+  const isActive = bracketState.activeRound === round.id;
+  const prevRound = getPrevRound(round.id);
+  const prevDone = !prevRound || Object.keys(roundResults[prevRound.id] || {}).length >= getRound(prevRound.id).matchCount;
 
-  const left = document.createElement('div'); left.className = 'half hleft';
-  left.appendChild(makeCol(['l_r16_0','l_r16_1','l_r16_2','l_r16_3','l_r16_4','l_r16_5','l_r16_6','l_r16_7'], 'Round of 16'));
-  left.appendChild(makeCol(['l_qf_0','l_qf_1','l_qf_2','l_qf_3'], 'Quarter-finals'));
-  left.appendChild(makeCol(['l_sf_0','l_sf_1'], 'Semi-finals'));
-  left.appendChild(makeCol(['l_sff'], 'SF Final'));
-  outer.appendChild(left);
+  let html = `<div class="round-section${isActive ? ' rs-active' : ''}" id="round-${round.id}">
+    <div class="round-header">
+      <div class="round-title">${round.label}</div>
+      <div class="round-status">`;
 
-  outer.appendChild(makeCentreCol());
+  if (Object.keys(results).length > 0) {
+    // Count correct picks in this round
+    let correct = 0;
+    for (const k of Object.keys(results)) {
+      if (picks[k] && picks[k].n === results[k].n) correct++;
+    }
+    html += `<span class="rs-badge rs-confirmed">✓ ${correct}/${Object.keys(results).length} correct</span>`;
+  } else if (isActive) {
+    const made = Object.keys(picks).length;
+    html += `<span class="rs-badge rs-open">Picking · ${made}/${matches.length} made</span>`;
+  } else if (!prevDone) {
+    html += `<span class="rs-badge rs-pending">Waiting for previous round</span>`;
+  } else {
+    html += `<span class="rs-badge rs-pending">Not yet open</span>`;
+  }
 
-  const right = document.createElement('div'); right.className = 'half hright';
-  right.appendChild(makeCol(['r_sff'], 'SF Final'));
-  right.appendChild(makeCol(['r_sf_0','r_sf_1'], 'Semi-finals'));
-  right.appendChild(makeCol(['r_qf_0','r_qf_1','r_qf_2','r_qf_3'], 'Quarter-finals'));
-  right.appendChild(makeCol(['r_r16_0','r_r16_1','r_r16_2','r_r16_3','r_r16_4','r_r16_5','r_r16_6','r_r16_7'], 'Round of 16'));
-  outer.appendChild(right);
+  html += `</div></div><div class="round-matches">`;
 
-  renderProg();
+  for (let i = 0; i < matches.length; i++) {
+    const { t1, t2 } = matches[i];
+    const key = `m${i}`;
+    const pick = picks[key] || null;
+    const result = results[key] || null;
+
+    const w1 = !!(result && t1 && result.n === t1.n);
+    const l1 = !!(result && t1 && !w1);
+    const w2 = !!(result && t2 && result.n === t2.n);
+    const l2 = !!(result && t2 && !w2);
+
+    const p1 = !!(pick && t1 && pick.n === t1.n);
+    const p2 = !!(pick && t2 && pick.n === t2.n);
+    const correct = !!(pick && result && pick.n === result.n);
+    const wrong = !!(pick && result && pick.n !== result.n);
+
+    html += `<div class="match-card${canPick && t1 && t2 ? ' mc-pickable' : ''}${result ? ' mc-done' : ''}">`;
+
+    // Team 1
+    html += `<div class="mc-team${w1?' mc-win':l1?' mc-lose':''}" 
+      ${canPick && t1 && t2 ? `onclick="pickMatch('${round.id}','${key}',${JSON.stringify(t1).replace(/"/g,'&quot;')})"` : ''}>
+      <div class="mc-flag${p1?' mc-picked':''}" style="${canPick&&t1&&t2?'cursor:pointer':''}">${t1 ? t1.f : '?'}</div>
+      <div class="mc-name${w1?' mc-win-name':l1?' mc-lose-name':''}">${t1 ? t1.n : 'TBD'}</div>
+    </div>`;
+
+    // VS / result
+    html += `<div class="mc-vs">`;
+    if (result) {
+      html += `<div class="mc-result-flag">${result.f}</div><div style="font-size:9px;color:var(--t3);margin-top:2px">${result.n}</div>`;
+    } else if (pick) {
+      html += `<div style="font-size:9px;font-weight:600;color:${correct?'var(--green)':wrong?'var(--red)':'var(--gold)'}">${correct?'✓':wrong?'✗':'→'} ${pick.n}</div>`;
+    } else {
+      html += `<div class="vs-txt">VS</div>`;
+    }
+    html += `</div>`;
+
+    // Team 2
+    html += `<div class="mc-team${w2?' mc-win':l2?' mc-lose':''}" 
+      ${canPick && t1 && t2 ? `onclick="pickMatch('${round.id}','${key}',${JSON.stringify(t2).replace(/"/g,'&quot;')})"` : ''}>
+      <div class="mc-flag${p2?' mc-picked':''}" style="${canPick&&t1&&t2?'cursor:pointer':''}">${t2 ? t2.f : '?'}</div>
+      <div class="mc-name${w2?' mc-win-name':l2?' mc-lose-name':''}">${t2 ? t2.n : 'TBD'}</div>
+    </div>`;
+
+    html += `</div>`; // match-card
+  }
+
+  html += `</div></div>`; // round-matches, round-section
+  return html;
 }
 
-function renderProg() {
-  const s = document.getElementById('pstrip'); if (!s) return;
-  if (!user) { s.style.display = 'none'; return; }
-  s.style.display = 'flex';
-  const made = Object.values(M).filter(m => m.w).length;
-  const champ = M['final'].w;
-  const lockBtn = user.locked
-    ? '<span style="background:rgba(201,168,76,.12);color:var(--gold);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">🔒 Picks locked</span>'
-    : (!tournamentStarted ? '<button class="btn btn-p" onclick="lockMyPicks()" style="font-size:11px;padding:5px 12px;">🔒 Lock my picks</button>' : '');
-  s.innerHTML = `
-    <div class="pi"><div class="plbl">Picks made</div><div class="pval">${made}/${TOTAL_PICKS}</div></div>
-    <div class="pi"><div class="plbl">Remaining</div><div class="pval">${TOTAL_PICKS - made}</div></div>
-    <div class="pi"><div class="plbl">My champion</div><div class="pval" style="font-size:14px;">${champ ? `${champ.f} ${champ.n}` : '—'}</div></div>
-    <div class="pi" style="justify-content:center;display:flex;align-items:center;">${lockBtn}</div>`;
+function pickMatch(roundId, matchKey, team) {
+  if (!canPickRound(roundId)) return;
+  if (!roundPicks[roundId]) roundPicks[roundId] = {};
+  roundPicks[roundId][matchKey] = team;
+  renderBracket();
+  savePicks();
 }
 
 /* ══════════════════════════════════════
-   WELCOME BAR
+   LEADERBOARD TAB (public)
 ══════════════════════════════════════ */
-function showWelcome() {
-  const wb = document.getElementById('wbar'); if (!wb) return;
-  if (!user) { wb.style.display = 'none'; return; }
-  wb.style.display = 'block';
-  const init = user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  const lockStatus = user.locked
-    ? '<span style="font-size:11px;color:var(--gold);">🔒 Picks locked</span>'
-    : '<span style="font-size:11px;color:var(--t2);">Picks open — click flags to pick</span>';
-  wb.innerHTML = `<div class="wbar">
-    <div class="av" style="width:32px;height:32px;font-size:11px;">${init}</div>
-    <div style="flex:1"><div class="wname">${user.name}</div><div class="wsub">${user.email} · ${lockStatus}</div></div>
-  </div>`;
+function renderLeaderboard() {
+  const el = document.getElementById('panel-leaderboard');
+  if (!el) return;
+
+  if (!entries.length) {
+    el.innerHTML = '<div class="card"><div class="empty">No entries yet.</div></div>';
+    return;
+  }
+
+  // Score everyone
+  const scored = entries.map(e => ({
+    name: e.name,
+    email: e.email,
+    score: calcScore(e.picks || {}, roundResults),
+    locked: e.locked,
+    isMe: user && e.email === user.email,
+  })).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+
+  let html = `<div class="card">
+    <div class="clabel">Leaderboard</div>
+    <table class="lb-table">
+      <thead><tr><th>#</th><th>Player</th><th>Points</th><th>Status</th></tr></thead>
+      <tbody>`;
+
+  let rank = 1;
+  for (let i = 0; i < scored.length; i++) {
+    const e = scored[i];
+    if (i > 0 && scored[i].score < scored[i-1].score) rank = i + 1;
+    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}`;
+    const init = e.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    html += `<tr class="${e.isMe ? 'lb-me' : ''}">
+      <td class="lb-rank">${medal}</td>
+      <td><div style="display:flex;align-items:center;gap:9px;">
+        <div class="av" style="width:28px;height:28px;font-size:10px;background:${e.isMe?'var(--gold)':'var(--s3)'};color:${e.isMe?'#1a0e00':'var(--t2)'};">${init}</div>
+        <div style="font-weight:${e.isMe?'700':'500'};color:${e.isMe?'var(--gold)':'var(--text)'};">${e.name}${e.isMe?' (you)':''}</div>
+      </div></td>
+      <td class="lb-score">${e.score}</td>
+      <td><span class="bdg ${e.locked?'bg':'bd'}">${e.locked?'🔒':'Open'}</span></td>
+    </tr>`;
+  }
+
+  html += `</tbody></table></div>`;
+  el.innerHTML = html;
+}
+
+/* ══════════════════════════════════════
+   ENTRIES TABLE (admin only)
+══════════════════════════════════════ */
+function renderEntries() {
+  const el = document.getElementById('panel-entries');
+  if (!el) return;
+
+  if (!adminPass) {
+    el.innerHTML = `<div class="card">
+      <div class="clabel">Admin access only</div>
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:300px;">
+        <input type="password" id="apass" placeholder="Admin password" style="font-family:inherit;font-size:13px;padding:9px 12px;border:1px solid var(--b2);border-radius:6px;background:var(--s2);color:var(--text);outline:none;width:100%;" onkeydown="if(event.key==='Enter')adminLogin()"/>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="btn btn-p" onclick="adminLogin()">Login →</button>
+          <span style="font-size:12px;color:var(--red);display:none;" id="loginErr">Wrong password</span>
+        </div>
+      </div></div>`;
+    return;
+  }
+
+  if (!entries.length) { el.innerHTML = '<div class="card"><div class="empty">No entries yet.</div></div>'; return; }
+
+  const scored = entries.map(e => ({ ...e, score: calcScore(e.picks||{}, roundResults) }))
+    .sort((a,b) => b.score - a.score);
+
+  let html = `<div class="card"><div class="clabel">All entries (${entries.length})</div>
+    <table class="etbl">
+      <thead><tr><th>Player</th><th>Score</th><th>Status</th><th>Actions</th></tr></thead><tbody>`;
+
+  for (const e of scored) {
+    const init = e.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const esc = e.email.replace(/'/g,"\\'");
+    html += `<tr>
+      <td><div style="display:flex;align-items:center;gap:9px;">
+        <div class="av" style="width:28px;height:28px;font-size:10px;">${init}</div>
+        <div><div style="font-weight:600;color:var(--text);">${e.name}</div><div style="font-size:10px;color:var(--t3);">${e.email}</div></div>
+      </div></td>
+      <td style="font-weight:700;color:var(--gold);font-size:16px;">${e.score}</td>
+      <td><span class="bdg ${e.locked?'bg':'bd'}">${e.locked?'🔒 Locked':'Open'}</span></td>
+      <td><div style="display:flex;gap:6px;">
+        <button class="btn btn-d" style="font-size:10px;padding:3px 8px;" onclick="adminResetEntry('${esc}')">Reset</button>
+        ${e.locked?`<button class="btn" style="font-size:10px;padding:3px 8px;" onclick="adminUnlockEntry('${esc}')">Unlock</button>`:''}
+      </div></td>
+    </tr>`;
+  }
+  html += `</tbody></table></div>`;
+  el.innerHTML = html;
 }
 
 /* ══════════════════════════════════════
@@ -343,81 +402,27 @@ function showWelcome() {
 function showTab(name, el) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.ntab').forEach(t => t.classList.remove('active'));
-  document.getElementById('panel-' + name).classList.add('active');
-  el.classList.add('active');
+  const panel = document.getElementById('panel-' + name);
+  if (panel) panel.classList.add('active');
+  if (el) el.classList.add('active');
+  currentTab = name;
+  if (name === 'leaderboard') renderLeaderboard();
   if (name === 'entries') renderEntries();
-  if (name === 'tracker') renderTracker();
 }
 
 /* ══════════════════════════════════════
-   TRACKER
+   ADMIN CONTROLS
 ══════════════════════════════════════ */
-function renderTracker() {
-  const el = document.getElementById('tracker-content'); if (!el) return;
-  const rounds = [
-    { label: 'Round of 16', ids: ['l_r16_0','l_r16_1','l_r16_2','l_r16_3','l_r16_4','l_r16_5','l_r16_6','l_r16_7','r_r16_0','r_r16_1','r_r16_2','r_r16_3','r_r16_4','r_r16_5','r_r16_6','r_r16_7'] },
-    { label: 'Quarter-finals', ids: ['l_qf_0','l_qf_1','l_qf_2','l_qf_3','r_qf_0','r_qf_1','r_qf_2','r_qf_3'] },
-    { label: 'Semi-finals', ids: ['l_sf_0','l_sf_1','r_sf_0','r_sf_1'] },
-    { label: 'SF Final', ids: ['l_sff','r_sff'] },
-    { label: 'Final', ids: ['final'] },
-  ];
-  const completedRounds = rounds.filter(r => r.ids.some(id => results[id]));
-  if (!completedRounds.length) { el.innerHTML = '<div class="empty">No results yet — check back once matches start.</div>'; return; }
-  el.innerHTML = completedRounds.map(round => {
-    const played = round.ids.filter(id => results[id]);
-    const players = entries.map(e => {
-      const ok = played.every(id => e.picks?.[id] && results[id] && e.picks[id].n === results[id].n);
-      const init = e.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-      return { ...e, ok, init };
-    });
-    const alive = players.filter(p => p.ok).length;
-    return `<div class="tracker-round">
-      <div class="tracker-round-header">
-        <div class="tracker-round-label">${round.label}</div>
-        <div class="tracker-round-count">${alive}/${players.length} perfect</div>
-      </div>
-      <div class="tracker-players">
-        ${players.map(p => `<div class="tracker-player ${p.ok ? 'tp-alive' : 'tp-out'}">
-          <div class="av" style="width:28px;height:28px;font-size:10px;background:${p.ok ? 'var(--gold)' : 'var(--s3)'};color:${p.ok ? '#1a0e00' : 'var(--t3)'};">${p.init}</div>
-          <div class="tp-name">${p.name}</div>
-          <div class="tp-status">${p.ok ? '✓ Perfect' : '✗ Out'}</div>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-/* ══════════════════════════════════════
-   ENTRIES TABLE (admin only)
-══════════════════════════════════════ */
-function renderEntries() {
-  const list = document.getElementById('elist'); if (!list) return;
-  if (adminPass) { showEntriesTable(); return; }
-  list.innerHTML = `
-    <div style="max-width:320px;margin:0 auto;padding:1.5rem 0;">
-      <p style="font-size:13px;color:var(--t2);margin-bottom:1rem;">Admin access only.</p>
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <div><label style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t2);display:block;margin-bottom:4px;">Admin password</label>
-        <input type="password" id="apass" placeholder="Password" style="font-family:inherit;font-size:13px;padding:9px 12px;border:1px solid var(--b2);border-radius:6px;background:var(--s2);color:var(--text);outline:none;width:100%;" onkeydown="if(event.key==='Enter')adminLogin()"/></div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <button class="btn btn-p" onclick="adminLogin()">Login →</button>
-          <span style="font-size:12px;color:var(--red);display:none;" id="loginErr">Wrong password</span>
-        </div>
-      </div>
-    </div>`;
-}
-
 async function adminLogin() {
   const pass = document.getElementById('apass')?.value || '';
-  const r = await api('/admin/verify', { method: 'POST', body: JSON.stringify({ pass }) });
+  const r = await api('/admin/verify', { method:'POST', body: JSON.stringify({ pass }) });
   if (r?.ok) {
     adminPass = pass; sessionStorage.setItem('adminPass', pass);
     document.getElementById('abar').classList.add('on');
-    loadSyncStatus();
-    await loadEntries(); showEntriesTable();
+    renderEntries();
   } else {
     const err = document.getElementById('loginErr');
-    if (err) { err.style.display = 'inline'; setTimeout(() => err.style.display = 'none', 3000); }
+    if (err) { err.style.display='inline'; setTimeout(()=>err.style.display='none',3000); }
   }
 }
 
@@ -427,181 +432,126 @@ function adminLogout() {
   renderEntries();
 }
 
-function showEntriesTable() {
-  const list = document.getElementById('elist'); if (!list) return;
-  if (!entries.length) { list.innerHTML = '<div class="empty">No entries yet.</div>'; return; }
-  const rows = entries.map(e => {
-    const p   = Object.keys(e.picks || {}).length;
-    const pct = Math.round((p / TOTAL_PICKS) * 100);
-    const init = e.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-    const saved = e.lastSaved ? new Date(e.lastSaved).toLocaleDateString() : '—';
-    const esc = e.email.replace(/'/g, "\\'");
-    return `<tr>
-      <td><div style="display:flex;align-items:center;gap:9px;">
-        <div class="av" style="width:28px;height:28px;font-size:10px;">${init}</div>
-        <div><div style="font-weight:600;color:var(--text);">${e.name}</div><div style="font-size:10px;color:var(--t3);">${e.email}</div></div>
-      </div></td>
-      <td>${e.champion ? `${e.champion.f} ${e.champion.n}` : '<span style="color:var(--t3)">—</span>'}</td>
-      <td><span class="bdg ${e.locked ? 'bg' : 'bd'}">${e.locked ? '🔒 Locked' : 'Open'}</span></td>
-      <td><div style="display:flex;align-items:center;gap:8px;">
-        <div style="flex:1;height:3px;background:var(--b2);border-radius:2px;min-width:50px;">
-          <div style="height:3px;background:var(--gold);border-radius:2px;width:${pct}%;"></div>
-        </div>
-        <span class="bdg ${p===TOTAL_PICKS?'bg':p>0?'bgg':'bd'}">${p}/${TOTAL_PICKS}</span>
-      </div></td>
-      <td style="color:var(--t3);font-size:11px;">${saved}</td>
-      <td>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-d" style="font-size:10px;padding:3px 8px;" onclick="adminResetEntry('${esc}')">Reset</button>
-          ${e.locked ? `<button class="btn" style="font-size:10px;padding:3px 8px;" onclick="adminUnlockEntry('${esc}')">Unlock</button>` : ''}
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-  list.innerHTML = `<table class="etbl">
-    <thead><tr><th>Player</th><th>Champion</th><th>Status</th><th>Progress</th><th>Saved</th><th>Actions</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>`;
+async function setActiveRound(roundId) {
+  bracketState.activeRound = roundId;
+  await api('/bracket-state', { method:'PUT', body: JSON.stringify({ activeRound: roundId }) });
+  renderBracket();
 }
 
-async function adminResetEntry(email) {
-  if (!confirm(`Reset all picks for ${email}? This also unlocks them.`)) return;
-  const r = await api(`/admin/entries/${encodeURIComponent(email)}/reset`, { method: 'PUT' });
-  if (r?.ok) {
-    if (user && user.email === email.toLowerCase()) await refreshUser();
-    await loadEntries(); showEntriesTable();
-  } else alert('Could not reset.');
-}
-
-async function adminUnlockEntry(email) {
-  if (!confirm(`Unlock picks for ${email}?`)) return;
-  const r = await api(`/admin/entries/${encodeURIComponent(email)}/unlock`, { method: 'PUT' });
-  if (r?.ok) {
-    if (user && user.email === email.toLowerCase()) await refreshUser();
-    await loadEntries(); showEntriesTable();
-  } else alert('Could not unlock.');
-}
-
-async function adminResetMyPicks() {
-  if (!user) return;
-  await adminResetEntry(user.email);
-}
-
-async function loadEntries() {
-  const d = await api('/entries');
-  if (d && Array.isArray(d)) entries = d;
-}
-
-/* ══════════════════════════════════════
-   ADMIN BRACKET CONTROLS
-══════════════════════════════════════ */
 async function startTournament() {
-  if (!confirm('Start the tournament? No new entries or pick changes after this.')) return;
-  tournamentStarted = true;
-  await api('/bracket-state', { method: 'PUT', body: JSON.stringify({ tournamentStarted: true }) });
-  setStatus(); render();
+  if (!confirm('Lock all picks? No changes after this.')) return;
+  bracketState.tournamentStarted = true;
+  await api('/bracket-state', { method:'PUT', body: JSON.stringify({ tournamentStarted: true }) });
+  renderBracket();
 }
+
 async function stopTournament() {
-  tournamentStarted = false;
-  await api('/bracket-state', { method: 'PUT', body: JSON.stringify({ tournamentStarted: false }) });
-  setStatus(); render();
-}
-async function lockBracket() {
-  locked = true;
-  await api('/bracket-state', { method: 'PUT', body: JSON.stringify({ locked: true }) });
-  setStatus(); render();
-}
-async function unlockBracket() {
-  locked = false;
-  await api('/bracket-state', { method: 'PUT', body: JSON.stringify({ locked: false }) });
-  setStatus(); render();
+  bracketState.tournamentStarted = false;
+  await api('/bracket-state', { method:'PUT', body: JSON.stringify({ tournamentStarted: false }) });
+  renderBracket();
 }
 
 async function manualSync() {
   const btn = document.getElementById('sync-btn');
   const st  = document.getElementById('sync-status');
-  if (btn) { btn.disabled = true; btn.textContent = '↻ Syncing…'; }
-  const r = await api('/admin/sync-results', { method: 'POST' });
-  if (btn) { btn.disabled = false; btn.textContent = '↻ Sync results'; }
+  if (btn) { btn.disabled=true; btn.textContent='↻ Syncing…'; }
+  const r = await api('/admin/sync-results', { method:'POST' });
+  if (btn) { btn.disabled=false; btn.textContent='↻ Sync results'; }
   if (r?.ok) {
-    if (st) st.textContent = `Synced · ${r.lastSync ? new Date(r.lastSync).toLocaleTimeString() : 'just now'}`;
-    const res = await api('/results');
-    if (res && typeof res === 'object' && !res.error) { results = res; render(); renderTracker(); }
-  } else {
-    if (st) st.textContent = 'Sync failed';
+    if (st) st.textContent = `Synced · ${r.lastSync ? new Date(r.lastSync).toLocaleTimeString() : 'now'}`;
+    await loadAll();
   }
 }
 
-async function loadSyncStatus() {
-  const r  = await api('/admin/sync-status');
-  const st = document.getElementById('sync-status');
-  if (r && st) st.textContent = `Last sync: ${r.lastSync ? new Date(r.lastSync).toLocaleTimeString() : 'never'}`;
+async function adminResetEntry(email) {
+  if (!confirm(`Reset picks for ${email}?`)) return;
+  const r = await api(`/admin/entries/${encodeURIComponent(email)}/reset`, { method:'PUT' });
+  if (r?.ok) { await loadAll(); renderEntries(); }
+}
+
+async function adminUnlockEntry(email) {
+  if (!confirm(`Unlock picks for ${email}?`)) return;
+  const r = await api(`/admin/entries/${encodeURIComponent(email)}/unlock`, { method:'PUT' });
+  if (r?.ok) { await loadAll(); renderEntries(); }
+}
+
+async function adminResetMyPicks() {
+  if (!user) return;
+  await adminResetEntry(user.email);
+  await refreshUser();
+  renderBracket();
+}
+
+async function lockMyPicks() {
+  if (!user || user.locked) return;
+  if (!confirm('Lock your picks? You cannot change them after this.')) return;
+  const r = await api(`/entries/${encodeURIComponent(user.email)}/lock`, { method:'PUT' });
+  if (r?.ok) { user.locked = true; sessionStorage.setItem('wcUser', JSON.stringify(user)); renderBracket(); }
 }
 
 /* ══════════════════════════════════════
    HELPERS
 ══════════════════════════════════════ */
-function setStatus() {
-  const b = document.getElementById('sbadge'); if (!b) return;
-  const cls   = tournamentStarted ? 'live'   : locked ? 'locked' : 'open';
-  const label = tournamentStarted ? 'Tournament live' : locked ? 'Bracket locked' : 'Picks open';
-  b.className = `sbadge ${cls}`;
-  document.getElementById('slabel').textContent = label;
-}
-
 function logout() {
   sessionStorage.removeItem('wcUser');
   window.location.href = '/';
+}
+
+async function refreshUser() {
+  if (!user) return;
+  const fresh = await fetch(`${API}/entries/${encodeURIComponent(user.email)}`).then(r=>r.ok?r.json():null).catch(()=>null);
+  if (fresh && !fresh.error) {
+    user = { ...user, ...fresh };
+    sessionStorage.setItem('wcUser', JSON.stringify(user));
+    roundPicks = fresh.picks || {};
+  }
+}
+
+async function loadAll() {
+  const [st, res, ents] = await Promise.all([
+    api('/bracket-state'),
+    api('/results'),
+    adminPass ? api('/entries') : fetch(`${API}/leaderboard`).then(r=>r.ok?r.json():[]).catch(()=>[]),
+  ]);
+
+  if (st && !st.error) bracketState = { ...bracketState, ...st };
+  if (res && !res.error) roundResults = res;
+  if (Array.isArray(ents)) entries = ents;
+
+  updateAdminRoundSelector();
+}
+
+function updateAdminRoundSelector() {
+  const sel = document.getElementById('round-selector');
+  if (!sel) return;
+  sel.value = bracketState.activeRound || 'r32';
 }
 
 /* ══════════════════════════════════════
    BOOT
 ══════════════════════════════════════ */
 (async function init() {
-  // check session
   let sessionUser = null;
   try { sessionUser = JSON.parse(sessionStorage.getItem('wcUser')); } catch {}
   if (!sessionUser) { window.location.href = '/login'; return; }
   user = sessionUser;
 
-  // show logout button
-  const lb = document.getElementById('logout-btn');
-  if (lb) lb.style.display = 'block';
+  document.getElementById('logout-btn').style.display = 'block';
 
-  // show admin tabs + bar if admin
   if (user.isAdmin) {
-    if (adminPass) { document.getElementById('abar').classList.add('on'); loadSyncStatus(); }
-    const tt = document.getElementById('tab-tracker'), te = document.getElementById('tab-entries');
-    if (tt) tt.style.display = ''; if (te) te.style.display = '';
+    if (adminPass) { document.getElementById('abar').classList.add('on'); }
+    document.getElementById('tab-entries').style.display = '';
   }
 
-  // render immediately with demo teams
-  teams = DEMO.slice(); locked = false; tournamentStarted = false;
-  initMatches(); setStatus(); showWelcome(); render();
+  await loadAll();
+  await refreshUser();
 
-  // fetch server state
-  const [st, res] = await Promise.all([api('/bracket-state'), api('/results')]);
+  renderBracket();
 
-  if (st && !st.error) {
-    locked = !!st.locked;
-    tournamentStarted = !!st.tournamentStarted;
-    if (st.teams && st.teams.length === 32)
-      teams = st.teams.map(t => ({ n: t.name || t.n, f: t.flag || t.f }));
-  }
-  if (res && typeof res === 'object' && !res.error) results = res;
-
-  // fetch fresh user picks from server
-  const fresh = await fetch(`${API}/entries/${encodeURIComponent(user.email)}`).then(r => r.ok ? r.json() : null).catch(() => null);
-  if (fresh && !fresh.error) {
-    user = { ...user, ...fresh };
-    sessionStorage.setItem('wcUser', JSON.stringify(user));
-  }
-
-  initMatches();
-  if (user.picks) {
-    for (const [id, t] of Object.entries(user.picks)) if (M[id]) M[id].w = t;
-    propagate();
-  }
-  setStatus(); showWelcome(); render();
-  await loadEntries();
+  // Auto-refresh leaderboard every 60s
+  setInterval(async () => {
+    await loadAll();
+    if (currentTab === 'leaderboard') renderLeaderboard();
+    if (currentTab === 'bracket') renderBracket();
+  }, 60000);
 })();

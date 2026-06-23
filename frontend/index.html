@@ -13,93 +13,48 @@
     <div><h1>2026 World Cup Predictor</h1><p>Pick your bracket — see who called it right</p></div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
-    <div class="sbadge open" id="sbadge"><div class="sdot"></div><span id="slabel">Picks open</span></div>
     <button class="btn" id="logout-btn" onclick="logout()" style="font-size:11px;display:none;">Log out</button>
   </div>
 </header>
+
 <nav class="nav">
-  <div class="ntab active" onclick="showTab('bracket',this)">Bracket</div>
-  <div class="ntab" onclick="showTab('rules',this)">Rules & Prizes</div>
-  <div class="ntab" id="tab-tracker" onclick="showTab('tracker',this)" style="display:none;">Perfect Bracket 🔥</div>
+  <div class="ntab active" onclick="showTab('bracket',this)">My Picks</div>
+  <div class="ntab" onclick="showTab('leaderboard',this)">🏆 Leaderboard</div>
   <div class="ntab" id="tab-entries" onclick="showTab('entries',this)" style="display:none;">Entries</div>
 </nav>
+
 <div class="app">
 
+  <!-- ADMIN BAR -->
   <div class="abar" id="abar">
-    <div class="albl">⚙ Admin controls</div>
+    <div class="albl">⚙ Admin</div>
     <div class="aacts">
-      <button class="btn btn-p" onclick="startTournament()">🚀 Start tournament</button>
+      <label style="font-size:11px;color:var(--t2);">Active round:</label>
+      <select id="round-selector" class="btn" style="font-size:11px;padding:6px 10px;" onchange="setActiveRound(this.value)">
+        <option value="r32">Round of 32</option>
+        <option value="r16">Round of 16</option>
+        <option value="qf">Quarter-finals</option>
+        <option value="sf">Semi-finals</option>
+        <option value="third">3rd Place</option>
+        <option value="final">Final</option>
+      </select>
+      <button class="btn btn-p" onclick="startTournament()">🚀 Lock all picks</button>
       <button class="btn" onclick="stopTournament()">Reopen picks</button>
-      <button class="btn" onclick="unlockBracket()">Unlock bracket</button>
-      <button class="btn" onclick="lockBracket()">Lock bracket</button>
       <button class="btn" onclick="manualSync()" id="sync-btn">↻ Sync results</button>
       <span id="sync-status" style="font-size:11px;color:var(--t2);"></span>
       <button class="btn btn-d" onclick="adminResetMyPicks()" style="margin-left:auto;">Reset my picks</button>
-      <button class="btn" onclick="adminLogout()">Log out admin</button>
+      <button class="btn" onclick="adminLogout()">Admin logout</button>
     </div>
   </div>
 
-  <!-- BRACKET -->
-  <div class="panel active" id="panel-bracket">
-    <div id="wbar" style="display:none;"></div>
-    <div class="pstrip" id="pstrip" style="display:none;"></div>
-    <div class="bsection"><div class="bouter" id="bouter"></div></div>
-  </div>
+  <!-- MY PICKS TAB -->
+  <div class="panel active" id="panel-bracket"></div>
 
-  <!-- RULES -->
-  <div class="panel" id="panel-rules">
-    <div class="card">
-      <div class="clabel">Reglur leiksins</div>
-      <div class="rules-intro"><p>Velkomin(n) í HM leik Jóa Útherja. Spáðu fyrir um niðurstöður leikja í hverri umferð og safnaðu stigum!</p></div>
-      <div class="rules-section">
-        <div class="rules-section-title">📋 Hvernig leikurinn fer fram</div>
-        <p>Þú skráir nafn, síma og netfang. Þá opnast þitt eigið svæði þar sem val á niðurstöðu leikja fer fram.</p>
-        <ul class="rules-list">
-          <li>Spáðu fyrir um niðurstöður í hverri umferð áður en tímamörk renna út</li>
-          <li>Þegar niðurstöður liggja fyrir opnast næsta umferð til að spá um</li>
-          <li>Eitt stig er gefið fyrir hvert rétt úrslit</li>
-          <li>Mest er hægt að fá <strong>32 stig</strong> ef rétt er spáð fyrir um öll úrslit</li>
-        </ul>
-      </div>
-      <div class="rules-section">
-        <div class="rules-section-title">⏰ Tímasetningar</div>
-        <div class="rules-timeline">
-          <div class="rules-round"><div class="rules-round-badge">32</div><div class="rules-round-info"><div class="rules-round-name">32 liða úrslit</div><div class="rules-round-time">28. júní 2026 · 05:00–18:59</div></div></div>
-          <div class="rules-round"><div class="rules-round-badge">16</div><div class="rules-round-info"><div class="rules-round-name">16 liða úrslit</div><div class="rules-round-time">4. júlí 2026 · 05:00–16:59</div></div></div>
-          <div class="rules-round"><div class="rules-round-badge">8</div><div class="rules-round-info"><div class="rules-round-name">8 liða úrslit</div><div class="rules-round-time">9. júlí 2026 · 05:00–19:59</div></div></div>
-          <div class="rules-round"><div class="rules-round-badge">4</div><div class="rules-round-info"><div class="rules-round-name">Undanúrslit</div><div class="rules-round-time">14. júlí 2026 · 05:00–18:59</div></div></div>
-          <div class="rules-round"><div class="rules-round-badge">3</div><div class="rules-round-info"><div class="rules-round-name">Þriðja sætið</div><div class="rules-round-time">18. júlí 2026 · 05:00–20:59</div></div></div>
-          <div class="rules-round rules-round-final"><div class="rules-round-badge">🏆</div><div class="rules-round-info"><div class="rules-round-name">Úrslitaleikur HM 2026</div><div class="rules-round-time">19. júlí 2026 · 05:00–18:59</div></div></div>
-        </div>
-      </div>
-      <div class="rules-section">
-        <div class="rules-section-title">🏅 Verðlaun</div>
-        <div class="rules-prizes">
-          <div class="rules-prize"><div class="rules-prize-points">10 stig</div><div class="rules-prize-desc">Gjafakort í Jóa Útherja<br/><strong>kr. 5.000</strong></div></div>
-          <div class="rules-prize"><div class="rules-prize-points">15 stig</div><div class="rules-prize-desc">Gjafakort í Jóa Útherja<br/><strong>kr. 10.000</strong></div></div>
-          <div class="rules-prize rules-prize-gold"><div class="rules-prize-points">20 stig</div><div class="rules-prize-desc">Liðatreyja að eigin vali<br/><strong>í verslun Jóa Útherja</strong></div></div>
-          <div class="rules-prize rules-prize-gold"><div class="rules-prize-points">25+ stig</div><div class="rules-prize-desc">Takkaskór að eigin vali<br/><strong>í verslun Jóa Útherja</strong></div></div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- LEADERBOARD TAB -->
+  <div class="panel" id="panel-leaderboard"></div>
 
-  <!-- TRACKER -->
-  <div class="panel" id="panel-tracker">
-    <div class="card">
-      <div class="clabel">Perfect Bracket Tracker</div>
-      <p style="font-size:13px;color:var(--t2);margin-bottom:1rem;">Who still has a perfect bracket after each round.</p>
-      <div id="tracker-content"><div class="empty">No results yet.</div></div>
-    </div>
-  </div>
-
-  <!-- ENTRIES -->
-  <div class="panel" id="panel-entries">
-    <div class="card">
-      <div class="clabel">All entries</div>
-      <div id="elist"></div>
-    </div>
-  </div>
+  <!-- ENTRIES TAB (admin) -->
+  <div class="panel" id="panel-entries"></div>
 
 </div>
 <script src="app.js"></script>

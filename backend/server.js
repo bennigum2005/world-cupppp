@@ -72,8 +72,9 @@ function readDB() {
       return init;
     }
     const data = JSON.parse(fs.readFileSync(DB, 'utf8'));
-    if (!data.bracketState) data.bracketState = { locked:false, tournamentStarted:false, teams:DEMO_TEAMS };
+    if (!data.bracketState) data.bracketState = { locked:false, tournamentStarted:false, teams:DEMO_TEAMS, activeRound:'r32' };
     if (!data.bracketState.teams || data.bracketState.teams.length < 32) data.bracketState.teams = DEMO_TEAMS;
+    if (!data.bracketState.activeRound) data.bracketState.activeRound = 'r32';
     if (!data.results) data.results = {};
     if (!data.entries) data.entries = [];
     if (data.bracketState.tournamentStarted === undefined) data.bracketState.tournamentStarted = false;
@@ -223,10 +224,11 @@ app.get('/api/bracket-state', (req, res) => res.json(readDB().bracketState));
 app.put('/api/bracket-state', (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
   const db = readDB();
-  const { locked, tournamentStarted, teams } = req.body;
+  const { locked, tournamentStarted, teams, activeRound } = req.body;
   if (locked !== undefined) db.bracketState.locked = !!locked;
   if (tournamentStarted !== undefined) db.bracketState.tournamentStarted = !!tournamentStarted;
   if (teams && teams.length === 32) db.bracketState.teams = teams;
+  if (activeRound) db.bracketState.activeRound = activeRound;
   writeDB(db); res.json(db.bracketState);
 });
 
@@ -308,6 +310,28 @@ app.get('/api/reset-bracket', (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
   const db = readDB(); db.bracketState = { locked:false, tournamentStarted:false, teams:DEMO_TEAMS };
   writeDB(db); res.json({ ok: true });
+});
+
+/* ══════════════════════════════════════
+   PUBLIC LEADERBOARD
+   Returns name + score only (no picks detail)
+══════════════════════════════════════ */
+app.get('/api/leaderboard', (req, res) => {
+  const db = readDB();
+  const results = db.results || {};
+  const scored = db.entries.map(e => {
+    let score = 0;
+    const picks = e.picks || {};
+    for (const roundId of Object.keys(picks)) {
+      const rPicks = picks[roundId] || {};
+      const rResults = results[roundId] || {};
+      for (const matchKey of Object.keys(rPicks)) {
+        if (rPicks[matchKey] && rResults[matchKey] && rPicks[matchKey].n === rResults[matchKey].n) score++;
+      }
+    }
+    return { name: e.name, email: e.email, score, locked: e.locked };
+  }).sort((a,b) => b.score - a.score);
+  res.json(scored);
 });
 
 /* ══════════════════════════════════════
