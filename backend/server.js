@@ -17,7 +17,8 @@ const BDL_BASE       = 'https://api.balldontlie.io/fifa/worldcup/v1';
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(FRONTEND));
+/* Serve static assets (css, js, images) but NOT html files via static middleware */
+app.use(express.static(FRONTEND, { index: false }));
 
 /* ══════════════════════════════════════
    TEAM NAME MAP
