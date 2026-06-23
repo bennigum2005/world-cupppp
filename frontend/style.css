@@ -170,3 +170,53 @@ body {
 .empty{text-align:center;padding:2.5rem;color:var(--t3);font-size:13px;}
 
 @media(max-width:640px){.hdr{flex-wrap:wrap;gap:8px;}.app{padding:1rem;}}
+
+/* ══ RULES PAGE ══ */
+.rules-page{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:1.5rem;}
+
+.rp-hero{text-align:center;padding:2rem 1rem 1rem;}
+.rp-hero-icon{font-size:36px;margin-bottom:.6rem;}
+.rp-hero-title{font-size:22px;font-weight:800;color:var(--text);margin-bottom:.5rem;letter-spacing:-.01em;}
+.rp-hero-sub{font-size:13px;color:var(--t2);max-width:460px;margin:0 auto;line-height:1.6;}
+
+.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.rp-prizes-card{grid-column:1/-1;}
+
+.rp-card{background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:1.25rem 1.5rem;}
+.rp-card-head{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid var(--b1);}
+
+/* Steps */
+.rp-steps{display:flex;flex-direction:column;gap:.75rem;}
+.rp-step{display:flex;align-items:flex-start;gap:.75rem;font-size:12px;color:var(--t2);line-height:1.5;}
+.rp-step-num{width:22px;height:22px;border-radius:50%;background:var(--gold-bg);border:1px solid var(--gold-dim);color:var(--gold);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+
+/* Timeline */
+.rp-timeline{display:flex;flex-direction:column;gap:0;}
+.rp-trow{display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--b1);}
+.rp-trow:last-child{border-bottom:none;}
+.rp-tbadge{width:28px;height:28px;border-radius:6px;background:var(--s2);border:1px solid var(--b2);color:var(--t2);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.rp-tbadge-final{background:var(--gold-bg);border-color:var(--gold-dim);font-size:14px;}
+.rp-trow-final .rp-tname{color:var(--gold);font-weight:700;}
+.rp-tinfo{display:flex;flex-direction:column;gap:1px;}
+.rp-tname{font-size:12px;font-weight:600;color:var(--text);}
+.rp-ttime{font-size:10px;color:var(--t3);}
+
+/* Prizes */
+.rp-prizes{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:.75rem;}
+.rp-prize{display:flex;flex-direction:column;align-items:center;gap:.5rem;background:var(--s2);border:1px solid var(--b1);border-radius:10px;padding:1rem .75rem;text-align:center;}
+.rp-prize-gold{border-color:var(--gold-dim);background:var(--gold-bg);}
+.rp-prize-pts{font-size:16px;font-weight:800;color:var(--text);}
+.rp-prize-gold .rp-prize-pts{color:var(--gold);}
+.rp-prize-sep{width:24px;height:1px;background:var(--b2);}
+.rp-prize-gold .rp-prize-sep{background:var(--gold-dim);}
+.rp-prize-val{font-size:12px;color:var(--t2);font-weight:500;}
+.rp-prize-amount{font-size:13px;font-weight:700;color:var(--text);margin-top:2px;}
+.rp-prize-gold .rp-prize-amount{color:var(--gold);}
+.rp-prize-note{font-size:10px;color:var(--t3);text-align:center;}
+
+@media(max-width:640px){
+  .rp-grid{grid-template-columns:1fr;}
+  .rp-prizes-card{grid-column:auto;}
+  .rp-prizes{grid-template-columns:repeat(2,1fr);}
+}
+
