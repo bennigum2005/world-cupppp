@@ -130,7 +130,7 @@ async function login(){
   btn.disabled=false;btn.textContent='Log in →';
   if(!r||r.error){err.textContent=r?.error||'Could not log in.';return;}
   sessionStorage.setItem('wcUser',JSON.stringify(r.user));
-  window.location.href='/';
+  window.location.href='/bracket';
 }
 async function signup(){
   const name=document.getElementById('s-name').value.trim();
@@ -153,7 +153,7 @@ async function signup(){
   if(!r||r.error){err.textContent=r?.error||'Could not create account.';return;}
   ok.textContent='Account created! Logging you in…';
   sessionStorage.setItem('wcUser',JSON.stringify(r.user));
-  setTimeout(()=>window.location.href='/',800);
+  setTimeout(()=>window.location.href='/bracket',800);
 }
 </script>
 </body>

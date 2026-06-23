@@ -440,9 +440,11 @@ app.get('/api/reset-bracket', (req, res) => {
   writeDB(db); res.json({ ok: true });
 });
 
-/* ── serve login page ── */
-app.get('/login', (req, res) => res.sendFile(path.join(FRONTEND, 'login.html')));
-app.get('*',      (req, res) => res.sendFile(path.join(FRONTEND, 'index.html')));
+/* ── serve pages ── */
+app.get('/login',   (req, res) => res.sendFile(path.join(FRONTEND, 'login.html')));
+app.get('/bracket', (req, res) => res.sendFile(path.join(FRONTEND, 'index.html')));
+app.get('/',        (req, res) => res.sendFile(path.join(FRONTEND, 'landing.html')));
+app.get('*',        (req, res) => res.sendFile(path.join(FRONTEND, 'index.html')));
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`⚽ Running on port ${PORT}`);

@@ -551,7 +551,7 @@ function setStatus() {
 
 function logout() {
   sessionStorage.removeItem('wcUser');
-  window.location.href = '/login';
+  window.location.href = '/';
 }
 
 /* ══════════════════════════════════════
