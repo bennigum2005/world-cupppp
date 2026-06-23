@@ -17,7 +17,10 @@ const BDL_BASE       = 'https://api.balldontlie.io/fifa/worldcup/v1';
 
 app.use(cors());
 app.use(express.json());
-/* Serve static assets (css, js, images) but NOT html files via static middleware */
+
+/* Root route must come BEFORE static middleware so landing.html wins at / */
+app.get('/', (req, res) => res.sendFile(path.join(FRONTEND, 'landing.html')));
+
 app.use(express.static(FRONTEND, { index: false }));
 
 /* ══════════════════════════════════════
@@ -444,7 +447,6 @@ app.get('/api/reset-bracket', (req, res) => {
 /* ── serve pages ── */
 app.get('/login',   (req, res) => res.sendFile(path.join(FRONTEND, 'login.html')));
 app.get('/bracket', (req, res) => res.sendFile(path.join(FRONTEND, 'index.html')));
-app.get('/',        (req, res) => res.sendFile(path.join(FRONTEND, 'landing.html')));
 app.get('*',        (req, res) => res.sendFile(path.join(FRONTEND, 'index.html')));
 
 app.listen(PORT, '0.0.0.0', () => {
