@@ -4,316 +4,139 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>2026 World Cup Predictor</title>
-  <link rel="stylesheet" href="style.css"/>
   <style>
-    .auth-page {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem 1rem;
-      background: var(--bg);
-    }
-    .auth-logo {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 2rem;
-    }
-    .auth-logo .logo-ball {
-      width: 56px;
-      height: 56px;
-      font-size: 28px;
-    }
-    .auth-logo h1 {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--text);
-      text-align: center;
-    }
-    .auth-logo p {
-      font-size: 13px;
-      color: var(--t2);
-      text-align: center;
-    }
-    .auth-box {
-      background: var(--s1);
-      border: 1px solid var(--b1);
-      border-radius: 14px;
-      padding: 2rem;
-      width: 100%;
-      max-width: 420px;
-    }
-    .auth-tabs {
-      display: flex;
-      gap: 0;
-      background: var(--s2);
-      border-radius: 8px;
-      padding: 3px;
-      margin-bottom: 1.5rem;
-    }
-    .auth-tab {
-      flex: 1;
-      padding: 8px;
-      text-align: center;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--t2);
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all .15s;
-    }
-    .auth-tab.active {
-      background: var(--s1);
-      color: var(--gold);
-      box-shadow: 0 1px 4px rgba(0,0,0,.3);
-    }
-    .auth-form { display: flex; flex-direction: column; gap: 14px; }
-    .auth-form .field { display: flex; flex-direction: column; gap: 5px; }
-    .auth-form label {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      color: var(--t2);
-    }
-    .auth-form input {
-      font-family: inherit;
-      font-size: 14px;
-      padding: 10px 13px;
-      border: 1px solid var(--b2);
-      border-radius: 7px;
-      background: var(--s2);
-      color: var(--text);
-      outline: none;
-      transition: border-color .15s;
-      width: 100%;
-    }
-    .auth-form input::placeholder { color: var(--t3); }
-    .auth-form input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,168,76,.08); }
-    .auth-submit {
-      font-family: inherit;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 11px;
-      border-radius: 7px;
-      border: none;
-      background: var(--gold);
-      color: #1a0e00;
-      cursor: pointer;
-      width: 100%;
-      margin-top: 4px;
-      transition: background .13s;
-    }
-    .auth-submit:hover { background: var(--gold2); }
-    .auth-submit:disabled { opacity: .5; cursor: default; }
-    .auth-err {
-      font-size: 12px;
-      color: var(--red);
-      text-align: center;
-      min-height: 18px;
-    }
-    .auth-ok {
-      font-size: 12px;
-      color: var(--green);
-      text-align: center;
-      min-height: 18px;
-    }
-    .pw-row { position: relative; }
-    .pw-toggle {
-      position: absolute;
-      right: 11px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      color: var(--t3);
-      cursor: pointer;
-      font-size: 13px;
-      padding: 2px;
-    }
-    .pw-toggle:hover { color: var(--t2); }
-    .strength-bar {
-      height: 3px;
-      border-radius: 2px;
-      background: var(--b2);
-      margin-top: 4px;
-      overflow: hidden;
-    }
-    .strength-fill {
-      height: 100%;
-      border-radius: 2px;
-      transition: width .2s, background .2s;
-    }
-    .divider {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--t3);
-      font-size: 11px;
-      margin: 4px 0;
-    }
-    .divider::before, .divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--b1);
-    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#080808;color:#efefef;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;}
+    .wrap{width:100%;max-width:400px;}
+    .logo{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:2rem;}
+    .ball{width:54px;height:54px;border-radius:50%;background:#c9a84c;display:flex;align-items:center;justify-content:center;font-size:26px;}
+    .logo h1{font-size:20px;font-weight:700;text-align:center;}
+    .logo p{font-size:12px;color:#777;text-align:center;}
+    .box{background:#111;border:1px solid #222;border-radius:14px;padding:1.75rem;}
+    .tabs{display:flex;background:#161616;border-radius:8px;padding:3px;margin-bottom:1.5rem;}
+    .tab{flex:1;padding:8px;text-align:center;font-size:13px;font-weight:500;color:#555;border-radius:6px;cursor:pointer;transition:all .15s;}
+    .tab.active{background:#111;color:#c9a84c;box-shadow:0 1px 4px rgba(0,0,0,.4);}
+    .form{display:flex;flex-direction:column;gap:14px;}
+    .field{display:flex;flex-direction:column;gap:5px;}
+    .field label{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#666;}
+    .field input{font-family:inherit;font-size:13px;padding:10px 12px;border:1px solid #2a2a2a;border-radius:7px;background:#161616;color:#efefef;outline:none;transition:border-color .15s;width:100%;}
+    .field input:focus{border-color:#c9a84c;}
+    .field input::placeholder{color:#444;}
+    .pw-wrap{position:relative;}
+    .pw-wrap input{padding-right:38px;}
+    .pw-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#555;cursor:pointer;font-size:14px;padding:2px;}
+    .strength{height:3px;background:#222;border-radius:2px;margin-top:4px;overflow:hidden;}
+    .strength-fill{height:100%;border-radius:2px;transition:width .2s,background .2s;}
+    .submit{font-family:inherit;font-size:13px;font-weight:600;padding:11px;border-radius:7px;border:none;background:#c9a84c;color:#1a0e00;cursor:pointer;width:100%;margin-top:4px;transition:background .13s;}
+    .submit:hover{background:#e2c56a;}
+    .submit:disabled{opacity:.5;cursor:default;}
+    .err{font-size:12px;color:#ef4444;text-align:center;min-height:16px;}
+    .ok{font-size:12px;color:#22c55e;text-align:center;min-height:16px;}
   </style>
 </head>
 <body>
-<div class="auth-page">
-  <div class="auth-logo">
-    <div class="logo-ball" style="width:56px;height:56px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:28px;">⚽</div>
+<div class="wrap">
+  <div class="logo">
+    <div class="ball">⚽</div>
     <h1>2026 World Cup Predictor</h1>
     <p>Pick your bracket — see who called it right</p>
   </div>
-
-  <div class="auth-box">
-    <div class="auth-tabs">
-      <div class="auth-tab" id="tab-login" onclick="switchTab('login')">Log in</div>
-      <div class="auth-tab active" id="tab-signup" onclick="switchTab('signup')">Create account</div>
+  <div class="box">
+    <div class="tabs">
+      <div class="tab" id="tab-login" onclick="show('login')">Log in</div>
+      <div class="tab active" id="tab-signup" onclick="show('signup')">Create account</div>
     </div>
 
-    <!-- LOGIN FORM -->
     <div id="form-login" style="display:none;">
-      <div class="auth-form">
-        <div class="field">
-          <label for="l-email">Email</label>
-          <input type="email" id="l-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')login()"/>
+      <div class="form">
+        <div class="field"><label>Email</label><input type="email" id="l-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')login()"/></div>
+        <div class="field"><label>Password</label>
+          <div class="pw-wrap"><input type="password" id="l-pass" placeholder="Your password" onkeydown="if(event.key==='Enter')login()"/><button class="pw-eye" onclick="togglePw('l-pass',this)" type="button">👁</button></div>
         </div>
-        <div class="field">
-          <label for="l-pass">Password</label>
-          <div class="pw-row">
-            <input type="password" id="l-pass" placeholder="Your password" onkeydown="if(event.key==='Enter')login()"/>
-            <button class="pw-toggle" type="button" onclick="togglePw('l-pass',this)">👁</button>
-          </div>
-        </div>
-        <div class="auth-err" id="login-err"></div>
-        <button class="auth-submit" onclick="login()" id="login-btn">Log in →</button>
+        <div class="err" id="l-err"></div>
+        <button class="submit" id="l-btn" onclick="login()">Log in →</button>
       </div>
     </div>
 
-    <!-- SIGNUP FORM -->
     <div id="form-signup">
-      <div class="auth-form">
-        <div class="field">
-          <label for="s-name">Full name</label>
-          <input type="text" id="s-name" placeholder="John Smith"/>
+      <div class="form">
+        <div class="field"><label>Full name</label><input type="text" id="s-name" placeholder="John Smith"/></div>
+        <div class="field"><label>Email</label><input type="email" id="s-email" placeholder="you@example.com"/></div>
+        <div class="field"><label>Phone number</label><input type="tel" id="s-phone" placeholder="+354 123 4567"/></div>
+        <div class="field"><label>Password</label>
+          <div class="pw-wrap"><input type="password" id="s-pass" placeholder="At least 6 characters" oninput="strength(this.value)"/><button class="pw-eye" onclick="togglePw('s-pass',this)" type="button">👁</button></div>
+          <div class="strength"><div class="strength-fill" id="s-fill" style="width:0"></div></div>
         </div>
-        <div class="field">
-          <label for="s-email">Email</label>
-          <input type="email" id="s-email" placeholder="you@example.com"/>
+        <div class="field"><label>Confirm password</label>
+          <div class="pw-wrap"><input type="password" id="s-confirm" placeholder="Repeat password" onkeydown="if(event.key==='Enter')signup()"/><button class="pw-eye" onclick="togglePw('s-confirm',this)" type="button">👁</button></div>
         </div>
-        <div class="field">
-          <label for="s-phone">Phone number</label>
-          <input type="tel" id="s-phone" placeholder="+1 234 567 8900"/>
-        </div>
-        <div class="field">
-          <label for="s-pass">Password</label>
-          <div class="pw-row">
-            <input type="password" id="s-pass" placeholder="Choose a password" oninput="checkStrength(this.value)"/>
-            <button class="pw-toggle" type="button" onclick="togglePw('s-pass',this)">👁</button>
-          </div>
-          <div class="strength-bar"><div class="strength-fill" id="strength-fill" style="width:0%"></div></div>
-        </div>
-        <div class="field">
-          <label for="s-confirm">Confirm password</label>
-          <div class="pw-row">
-            <input type="password" id="s-confirm" placeholder="Repeat password" onkeydown="if(event.key==='Enter')signup()"/>
-            <button class="pw-toggle" type="button" onclick="togglePw('s-confirm',this)">👁</button>
-          </div>
-        </div>
-        <div class="auth-err" id="signup-err"></div>
-        <div class="auth-ok"  id="signup-ok"></div>
-        <button class="auth-submit" onclick="signup()" id="signup-btn">Create account →</button>
+        <div class="err" id="s-err"></div>
+        <div class="ok"  id="s-ok"></div>
+        <button class="submit" id="s-btn" onclick="signup()">Create account →</button>
       </div>
     </div>
   </div>
 </div>
-
 <script>
-function switchTab(tab) {
-  document.getElementById('form-login').style.display  = tab === 'login'  ? 'block' : 'none';
-  document.getElementById('form-signup').style.display = tab === 'signup' ? 'block' : 'none';
-  document.getElementById('tab-login').classList.toggle('active',  tab === 'login');
-  document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
-  document.getElementById('login-err').textContent  = '';
-  document.getElementById('signup-err').textContent = '';
-  document.getElementById('signup-ok').textContent  = '';
+function show(tab){
+  document.getElementById('form-login').style.display  = tab==='login'  ? 'block':'none';
+  document.getElementById('form-signup').style.display = tab==='signup' ? 'block':'none';
+  document.getElementById('tab-login').classList.toggle('active', tab==='login');
+  document.getElementById('tab-signup').classList.toggle('active', tab==='signup');
+  document.getElementById('l-err').textContent='';
+  document.getElementById('s-err').textContent='';
+  document.getElementById('s-ok').textContent='';
 }
-
-function togglePw(id, btn) {
-  const inp = document.getElementById(id);
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+function togglePw(id,btn){
+  const i=document.getElementById(id);
+  i.type=i.type==='password'?'text':'password';
+  btn.textContent=i.type==='password'?'👁':'🙈';
 }
-
-function checkStrength(pw) {
-  const fill = document.getElementById('strength-fill');
-  let score = 0;
-  if (pw.length >= 8)  score++;
-  if (/[A-Z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  const pct = (score / 4) * 100;
-  const colors = ['#ef4444','#f97316','#eab308','#22c55e'];
-  fill.style.width = pct + '%';
-  fill.style.background = colors[score - 1] || 'transparent';
+function strength(pw){
+  let s=0;
+  if(pw.length>=6)s++;if(pw.length>=10)s++;
+  if(/[A-Z]/.test(pw)&&/[0-9]/.test(pw))s++;
+  if(/[^A-Za-z0-9]/.test(pw))s++;
+  const f=document.getElementById('s-fill');
+  f.style.width=(s/4*100)+'%';
+  f.style.background=['#ef4444','#f97316','#eab308','#22c55e'][s-1]||'transparent';
 }
-
-async function login() {
-  const email = document.getElementById('l-email').value.trim();
-  const pass  = document.getElementById('l-pass').value;
-  const err   = document.getElementById('login-err');
-  const btn   = document.getElementById('login-btn');
-  err.textContent = '';
-  if (!email || !pass) { err.textContent = 'Please fill in all fields.'; return; }
-  btn.disabled = true; btn.textContent = 'Logging in…';
-  const r = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password: pass })
-  }).then(r => r.json()).catch(() => null);
-  btn.disabled = false; btn.textContent = 'Log in →';
-  if (!r || r.error) { err.textContent = r?.error || 'Could not log in. Try again.'; return; }
-  sessionStorage.setItem('wcUser', JSON.stringify(r.user));
-  window.location.href = '/';
+async function login(){
+  const email=document.getElementById('l-email').value.trim();
+  const pass=document.getElementById('l-pass').value;
+  const err=document.getElementById('l-err');
+  const btn=document.getElementById('l-btn');
+  err.textContent='';
+  if(!email||!pass){err.textContent='Please fill in all fields.';return;}
+  btn.disabled=true;btn.textContent='Logging in…';
+  const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})}).then(r=>r.json()).catch(()=>null);
+  btn.disabled=false;btn.textContent='Log in →';
+  if(!r||r.error){err.textContent=r?.error||'Could not log in.';return;}
+  sessionStorage.setItem('wcUser',JSON.stringify(r.user));
+  window.location.href='/';
 }
-
-async function signup() {
-  const name    = document.getElementById('s-name').value.trim();
-  const email   = document.getElementById('s-email').value.trim();
-  const phone   = document.getElementById('s-phone').value.trim();
-  const pass    = document.getElementById('s-pass').value;
-  const confirm = document.getElementById('s-confirm').value;
-  const err     = document.getElementById('signup-err');
-  const ok      = document.getElementById('signup-ok');
-  const btn     = document.getElementById('signup-btn');
-  err.textContent = ''; ok.textContent = '';
-
-  if (!name)    { err.textContent = 'Please enter your full name.'; return; }
-  if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) { err.textContent = 'Please enter a valid email.'; return; }
-  if (!phone)   { err.textContent = 'Please enter your phone number.'; return; }
-  if (pass.length < 6) { err.textContent = 'Password must be at least 6 characters.'; return; }
-  if (pass !== confirm) { err.textContent = 'Passwords do not match.'; return; }
-
-  btn.disabled = true; btn.textContent = 'Creating account…';
-  const r = await fetch('/api/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, phone, password: pass })
-  }).then(r => r.json()).catch(() => null);
-  btn.disabled = false; btn.textContent = 'Create account →';
-
-  if (!r || r.error) { err.textContent = r?.error || 'Could not create account. Try again.'; return; }
-  ok.textContent = 'Account created! Logging you in…';
-  setTimeout(() => {
-    sessionStorage.setItem('wcUser', JSON.stringify(r.user));
-    window.location.href = '/';
-  }, 800);
+async function signup(){
+  const name=document.getElementById('s-name').value.trim();
+  const email=document.getElementById('s-email').value.trim();
+  const phone=document.getElementById('s-phone').value.trim();
+  const pass=document.getElementById('s-pass').value;
+  const confirm=document.getElementById('s-confirm').value;
+  const err=document.getElementById('s-err');
+  const ok=document.getElementById('s-ok');
+  const btn=document.getElementById('s-btn');
+  err.textContent='';ok.textContent='';
+  if(!name){err.textContent='Please enter your full name.';return;}
+  if(!email||!/^[^@]+@[^@]+\.[^@]+$/.test(email)){err.textContent='Please enter a valid email.';return;}
+  if(!phone){err.textContent='Please enter your phone number.';return;}
+  if(pass.length<6){err.textContent='Password must be at least 6 characters.';return;}
+  if(pass!==confirm){err.textContent='Passwords do not match.';return;}
+  btn.disabled=true;btn.textContent='Creating account…';
+  const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,phone,password:pass})}).then(r=>r.json()).catch(()=>null);
+  btn.disabled=false;btn.textContent='Create account →';
+  if(!r||r.error){err.textContent=r?.error||'Could not create account.';return;}
+  ok.textContent='Account created! Logging you in…';
+  sessionStorage.setItem('wcUser',JSON.stringify(r.user));
+  setTimeout(()=>window.location.href='/',800);
 }
 </script>
 </body>
