@@ -187,3 +187,4 @@ body {
 .rules-prize-desc strong{color:var(--text);}
 
 @media(max-width:640px){.hdr{flex-wrap:wrap;gap:8px;}.app{padding:1rem;}}
+
