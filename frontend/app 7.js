@@ -130,6 +130,11 @@ async function lockMyPicks() {
 /* ══ MATCH CARD ══ */
 function makeCard(matchId) {
   const m = M[matchId];
+  if (!m) {
+    const wrap = document.createElement('div'); wrap.className = 'mu';
+    const d = document.createElement('div'); d.className = 'tbd-card'; d.textContent = 'TBD';
+    wrap.appendChild(d); return wrap;
+  }
   const pickable = isPickable(matchId);
   const { t1, t2 } = m;
   const myPick = picks[matchId] || null;
@@ -455,7 +460,7 @@ function logout(){sessionStorage.removeItem('wcUser');window.location.href='/';}
   document.getElementById('logout-btn').style.display='block';
   if(user.isAdmin){if(adminPass){document.getElementById('abar').classList.add('on');loadSyncStatus();}document.getElementById('tab-entries').style.display='';}
   teams=DEMO.slice();locked=false;tournamentStarted=false;activeRound='r32';
-  initMatches();render();
+  initMatches(); propagateResults(); render();
   const [st,res]=await Promise.all([api('/bracket-state'),api('/results')]);
   if(st&&!st.error){locked=!!st.locked;tournamentStarted=!!st.tournamentStarted;activeRound=st.activeRound||'r32';if(st.teams&&st.teams.length===32)teams=st.teams.map(t=>({n:t.name||t.n,f:t.flag||t.f}));}
   if(res&&!res.error)results=res;
