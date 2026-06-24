@@ -129,7 +129,10 @@ function propagateResults() {
    Teams for later rounds come from CONFIRMED RESULTS only.
 ══════════════════════════════════════ */
 function isPickable(matchId) {
-  if (!user || user.locked || tournamentStarted) return false;
+  if (!user || tournamentStarted) return false;
+  // user.locked only blocks picking in the round they locked.
+  // If admin has moved to a new round, picks are open again for that round.
+  if (user.locked && user.lockedRound && user.lockedRound === activeRound) return false;
   return (ROUND_MATCHES[activeRound] || []).includes(matchId);
 }
 
@@ -161,10 +164,20 @@ async function pick(matchId, team) {
 }
 
 async function lockMyPicks() {
-  if (!user || user.locked) return;
+  if (!user) return;
+  // Already locked for this round
+  if (user.locked && user.lockedRound === activeRound) return;
   if (!confirm('Það verður ekki hægt að breyta eftir þetta')) return;
-  const r = await api(`/entries/${encodeURIComponent(user.email)}/lock`, { method: 'PUT' });
-  if (r?.ok) { user.locked = true; sessionStorage.setItem('wcUser', JSON.stringify(user)); render(); }
+  const r = await api(`/entries/${encodeURIComponent(user.email)}/lock`, {
+    method: 'PUT',
+    body: JSON.stringify({ round: activeRound })
+  });
+  if (r?.ok) {
+    user.locked = true;
+    user.lockedRound = activeRound;
+    sessionStorage.setItem('wcUser', JSON.stringify(user));
+    render();
+  }
 }
 
 /* ══════════════════════════════════════
@@ -406,7 +419,8 @@ function renderProg() {
   const madePicks = activeIds.filter(id => picks[id]).length;
   const roundLabel = ROUND_LABELS[activeRound] || activeRound;
 
-  const lockBtn = user.locked
+  const isLockedThisRound = user.locked && user.lockedRound === activeRound;
+  const lockBtn = isLockedThisRound
     ? '<span style="background:rgba(232,232,232,.12);color:var(--gold);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">🔒 Picks locked</span>'
     : (!tournamentStarted ? `<button class="btn btn-p" onclick="lockMyPicks()" style="font-size:11px;padding:5px 12px;">🔒 Lock my picks</button>` : '');
 

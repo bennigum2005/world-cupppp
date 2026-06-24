@@ -9,9 +9,7 @@ const app      = express();
 const PORT     = process.env.PORT || 3000;
 const ROOT     = path.resolve(__dirname, '..');
 const FRONTEND = path.join(ROOT, 'frontend');
-/* Use Railway persistent volume at /data if available, else local fallback */
-const DATA_DIR = fs.existsSync('/data') ? '/data' : ROOT;
-const DB       = path.join(DATA_DIR, 'db.json');
+const DB = path.join(ROOT, 'db.json');
 const ADMIN_PASS  = process.env.ADMIN_PASS  || 'worldcup2026';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 const BDL_KEY     = process.env.BALLDONTLIE_KEY || '7613b730-f1ee-480b-8584-063f8ad5fc57';
@@ -262,7 +260,9 @@ app.put('/api/entries/:email/lock', (req, res) => {
   const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
   if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
   if (db.bracketState.tournamentStarted) return res.status(403).json({ error: 'Tournament already started.' });
-  db.entries[idx].locked = true; db.entries[idx].lockedAt = new Date().toISOString();
+  db.entries[idx].locked = true;
+  db.entries[idx].lockedRound = req.body?.round || db.bracketState.activeRound || 'r32';
+  db.entries[idx].lockedAt = new Date().toISOString();
   writeDB(db); res.json({ ok: true });
 });
 
@@ -305,7 +305,9 @@ app.put('/api/admin/entries/:email/unlock', (req, res) => {
   const db = readDB();
   const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
   if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
-  db.entries[idx].locked = false; db.entries[idx].lockedAt = null;
+  db.entries[idx].locked = false;
+  db.entries[idx].lockedRound = null;
+  db.entries[idx].lockedAt = null;
   writeDB(db); res.json({ ok: true });
 });
 app.get('/api/reset-bracket', (req, res) => {
