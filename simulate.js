@@ -7,6 +7,7 @@
   node simulate.js clean       — remove fake users
   node simulate.js reset       — wipe results + set activeRound back to r32
   node simulate.js full        — seed + r32 results in one go
+  node simulate.js fulllock    — seed + r32 results + lock all + scores
 */
 
 const fs    = require('fs');
@@ -96,7 +97,7 @@ async function seed() {
     const picks = {};
     for (const m of R32) picks[m.id] = rnd([m.t1, m.t2]);
     db.entries.push({ name, email, phone:`77${String(i).padStart(6,'0')}`,
-      passwordHash: hash, picks, locked: false, joined: new Date().toISOString() });
+      passwordHash: hash, picks, locked: true, lockedRound: 'r32', lockedAt: new Date().toISOString(), joined: new Date().toISOString() });
     console.log(`✓ ${name} — picks: ${Object.values(picks).map(p=>p.n).join(', ')}`);
     added++;
   }
@@ -133,6 +134,23 @@ function r32results() {
 
   writeDB(db);
   console.log('\n✓ activeRound set to r16 — players can now pick Round of 16');
+}
+
+/* ── lock all users for current round ── */
+function lockAll() {
+  const db = readDB();
+  const round = db.bracketState?.activeRound || 'r32';
+  let count = 0;
+  for (const e of db.entries) {
+    if (!e.locked || e.lockedRound !== round) {
+      e.locked = true;
+      e.lockedRound = round;
+      e.lockedAt = new Date().toISOString();
+      count++;
+    }
+  }
+  writeDB(db);
+  console.log(`\n✓ Locked ${count} users for round: ${round}`);
 }
 
 /* ── leaderboard ── */
@@ -182,16 +200,19 @@ const cmd = process.argv[2] || 'help';
     case 'clean':   clean();                break;
     case 'reset':   reset();                break;
     case 'full':    await seed(); r32results(); scores(); break;
+    case 'fulllock': await seed(); r32results(); lockAll(); scores(); break;
     default:
       console.log(`
 Usage: node simulate.js <command>
 
-  seed    — add 10 fake users with random r32 picks
+  seed    — add 10 fake users with random r32 picks (auto-locked)
   r32     — confirm r32 results + open r16 for picking
+  lock    — lock all users for the current active round
   scores  — print leaderboard
   clean   — remove all fake users (keeps real accounts)
   reset   — clear results, set active round back to r32
   full    — seed + r32 results + scores in one go
+  fulllock — seed + r32 results + lock all users + scores
 `);
   }
 })();
