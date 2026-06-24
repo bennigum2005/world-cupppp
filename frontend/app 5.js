@@ -222,10 +222,9 @@ function makeCard(matchId) {
 
   function mkFC(team, iWon, iLost, isPicked) {
     const el = document.createElement('div');
-    // If result exists: green if I picked this team and they won, red if I picked and they lost
-    // If no result yet: gold border if this is my pick
-    if (result && isPicked) {
-      el.className = 'flag-circle' + (iWon ? ' fc-correct' : ' fc-wrong');
+    // Red only if I picked this team and they lost. No green circle — just normal win glow.
+    if (result && isPicked && iLost) {
+      el.className = 'flag-circle fc-wrong';
     } else if (result) {
       el.className = 'flag-circle' + (iWon ? ' fc-win' : iLost ? ' fc-lose' : '');
     } else {
@@ -315,8 +314,8 @@ function makeCentreCol() {
 
   function mkFF(team, win, lose, isPicked) {
     const el = document.createElement('div');
-    if (result && isPicked) {
-      el.className = 'fin-flag' + (win ? ' ff-correct' : ' ff-wrong');
+    if (result && isPicked && lose) {
+      el.className = 'fin-flag ff-wrong';
     } else if (result) {
       el.className = 'fin-flag' + (win?' fw':lose?' fl':!team?' ft':'');
     } else {
@@ -361,7 +360,7 @@ function makeCentreCol() {
   const trw2=!!(tpResult&&tp2&&tpResult.n===tp2.n),trl2=!!(tpResult&&tp2&&!trw2);
   const tp1p=!!(tpPick&&tp1&&tpPick.n===tp1.n), tp2p=!!(tpPick&&tp2&&tpPick.n===tp2.n);
   function mkTF(team,win,lose,isPicked){ const el=document.createElement('div');
-    if(tpResult&&isPicked){ el.className='flag-circle tp-flag'+(win?' fc-correct':' fc-wrong'); }
+    if(tpResult&&isPicked&&lose){ el.className='flag-circle tp-flag fc-wrong'; }
     else if(tpResult){ el.className='flag-circle tp-flag'+(win?' fc-win':lose?' fc-lose':''); }
     else { el.className='flag-circle tp-flag'+(isPicked?' fc-picked':''); }
     el.innerHTML=flagImg(team?team.f:null); return el; }
