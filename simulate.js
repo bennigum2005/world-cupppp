@@ -1,19 +1,16 @@
 #!/usr/bin/env node
 /*
-  simulate.js — seed 10 fake users with random picks, then simulate results
-  Run from repo root: node simulate.js [command]
-
-  Commands:
-    node simulate.js seed       — add 10 fake users with random picks
-    node simulate.js results    — set random results for round of 32
-    node simulate.js scores     — print current leaderboard
-    node simulate.js clean      — remove all fake users (keeps real ones)
-    node simulate.js reset      — wipe results only
-    node simulate.js full       — seed + results in one go
+  simulate.js
+  node simulate.js seed        — add 10 fake users with r32 picks
+  node simulate.js r32         — set r32 results + open r16 for picking
+  node simulate.js scores      — print leaderboard
+  node simulate.js clean       — remove fake users
+  node simulate.js reset       — wipe results + set activeRound back to r32
+  node simulate.js full        — seed + r32 results in one go
 */
 
-const fs   = require('fs');
-const path = require('path');
+const fs    = require('fs');
+const path  = require('path');
 const bcrypt = require('bcryptjs');
 
 const DB = path.join(__dirname, 'db.json');
@@ -37,7 +34,7 @@ const TEAMS = [
   {n:'Uruguay',f:'uy'},{n:'Iran',f:'ir'},
 ];
 
-// R32 match IDs and which teams play each other
+// R32: each match ID + the two teams
 const R32 = [
   {id:'l_r16_0', t1:TEAMS[0],  t2:TEAMS[1]},
   {id:'l_r16_1', t1:TEAMS[2],  t2:TEAMS[3]},
@@ -57,6 +54,19 @@ const R32 = [
   {id:'r_r16_7', t1:TEAMS[30], t2:TEAMS[31]},
 ];
 
+// R16: winners of R32 pairs play each other
+// l_qf_0 = winner(l_r16_0) vs winner(l_r16_1), etc.
+const R16_SLOTS = [
+  {id:'l_qf_0', s1:'l_r16_0', s2:'l_r16_1'},
+  {id:'l_qf_1', s1:'l_r16_2', s2:'l_r16_3'},
+  {id:'l_qf_2', s1:'l_r16_4', s2:'l_r16_5'},
+  {id:'l_qf_3', s1:'l_r16_6', s2:'l_r16_7'},
+  {id:'r_qf_0', s1:'r_r16_0', s2:'r_r16_1'},
+  {id:'r_qf_1', s1:'r_r16_2', s2:'r_r16_3'},
+  {id:'r_qf_2', s1:'r_r16_4', s2:'r_r16_5'},
+  {id:'r_qf_3', s1:'r_r16_6', s2:'r_r16_7'},
+];
+
 const FAKE_NAMES = [
   'Jón Jónsson','Sigríður Björk','Guðmundur Eiríksson','Anna Kristín',
   'Bjarni Sigurðsson','Helga Magnúsdóttir','Ólafur Kristjánsson',
@@ -64,12 +74,16 @@ const FAKE_NAMES = [
 ];
 
 function readDB() {
-  if (!fs.existsSync(DB)) return { bracketState:{locked:false,tournamentStarted:false,teams:TEAMS,activeRound:'r32'}, entries:[], results:{} };
+  if (!fs.existsSync(DB)) return {
+    bracketState: { locked:false, tournamentStarted:false, teams:TEAMS, activeRound:'r32' },
+    entries: [], results: {}
+  };
   return JSON.parse(fs.readFileSync(DB,'utf8'));
 }
-function writeDB(data) { fs.writeFileSync(DB, JSON.stringify(data,null,2)); }
-function pick(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+function writeDB(data) { fs.writeFileSync(DB, JSON.stringify(data, null, 2)); }
+function rnd(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+/* ── seed ── */
 async function seed() {
   const db = readDB();
   const hash = await bcrypt.hash('test1234', 8);
@@ -77,84 +91,107 @@ async function seed() {
   for (let i = 0; i < FAKE_NAMES.length; i++) {
     const name  = FAKE_NAMES[i];
     const email = `fake${i+1}@test.is`;
-    if (db.entries.find(e => e.email === email)) { console.log(`skip ${email} (exists)`); continue; }
-
-    // Random picks for r32
+    if (db.entries.find(e => e.email === email)) { console.log(`skip ${email}`); continue; }
+    // Give each fake user random r32 picks
     const picks = {};
-    for (const m of R32) picks[m.id] = pick([m.t1, m.t2]);
-
-    db.entries.push({
-      name, email,
-      phone: `77${String(i).padStart(6,'0')}`,
-      passwordHash: hash,
-      picks,
-      locked: false,
-      joined: new Date().toISOString(),
-    });
-    console.log(`✓ Added ${name} (${email}) with ${Object.keys(picks).length} picks`);
+    for (const m of R32) picks[m.id] = rnd([m.t1, m.t2]);
+    db.entries.push({ name, email, phone:`77${String(i).padStart(6,'0')}`,
+      passwordHash: hash, picks, locked: false, joined: new Date().toISOString() });
+    console.log(`✓ ${name} — picks: ${Object.values(picks).map(p=>p.n).join(', ')}`);
     added++;
   }
+  if (!db.bracketState) db.bracketState = {};
+  db.bracketState.activeRound = 'r32';
   writeDB(db);
-  console.log(`\nDone — added ${added} fake users. Password for all: test1234`);
+  console.log(`\nAdded ${added} fake users. Password: test1234`);
 }
 
-function results() {
+/* ── r32 results: set winners, open r16 ── */
+function r32results() {
   const db = readDB();
-  db.results = db.results || {};
-  // Random winner for each r32 match
+  if (!db.results) db.results = {};
+  if (!db.bracketState) db.bracketState = {};
+
+  console.log('\n── Round of 32 Results ──');
   for (const m of R32) {
-    db.results[m.id] = pick([m.t1, m.t2]);
-    console.log(`${m.id}: ${db.results[m.id].n} wins`);
+    const winner = rnd([m.t1, m.t2]);
+    db.results[m.id] = winner;
+    console.log(`  ${m.id}: ${m.t1.n} vs ${m.t2.n}  →  ${winner.n} wins`);
   }
+
+  // Derive r16 matchups from r32 winners and print them
+  console.log('\n── Round of 16 Matchups (now open) ──');
+  for (const slot of R16_SLOTS) {
+    const t1 = db.results[slot.s1];
+    const t2 = db.results[slot.s2];
+    console.log(`  ${slot.id}: ${t1.n} vs ${t2.n}`);
+  }
+
+  // Set activeRound to r16 so players can now pick
+  db.bracketState.activeRound = 'r16';
+  db.bracketState.tournamentStarted = false; // keep picks open
+
   writeDB(db);
-  console.log('\nResults set for Round of 32');
+  console.log('\n✓ activeRound set to r16 — players can now pick Round of 16');
 }
 
+/* ── leaderboard ── */
 function scores() {
   const db = readDB();
   const res = db.results || {};
   const scored = db.entries.map(e => {
-    const score = Object.entries(res).filter(([id,r]) => e.picks?.[id]?.n === r.n).length;
+    const score = Object.entries(res).filter(([id, r]) => e.picks?.[id]?.n === r.n).length;
     return { name: e.name, email: e.email, score };
-  }).sort((a,b) => b.score - a.score);
+  }).sort((a, b) => b.score - a.score);
 
-  console.log('\n🏆 LEADERBOARD\n' + '─'.repeat(40));
-  scored.forEach((e,i) => console.log(`${i+1}. ${e.name.padEnd(28)} ${e.score} pts`));
-  console.log('─'.repeat(40));
-  console.log(`Total results confirmed: ${Object.keys(res).length}`);
+  console.log('\n🏆 LEADERBOARD\n' + '─'.repeat(44));
+  scored.forEach((e, i) => {
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`;
+    console.log(`${medal} ${e.name.padEnd(28)} ${e.score} pts`);
+  });
+  console.log('─'.repeat(44));
+  console.log(`Results confirmed: ${Object.keys(res).length} matches`);
+  console.log(`Active round: ${db.bracketState?.activeRound || 'r32'}`);
 }
 
+/* ── clean fake users ── */
 function clean() {
   const db = readDB();
   const before = db.entries.length;
-  db.entries = db.entries.filter(e => !e.email.startsWith('fake') || !e.email.endsWith('@test.is'));
+  db.entries = db.entries.filter(e => !(e.email.startsWith('fake') && e.email.endsWith('@test.is')));
   writeDB(db);
   console.log(`Removed ${before - db.entries.length} fake users. ${db.entries.length} real users remain.`);
 }
 
+/* ── reset results + back to r32 ── */
 function reset() {
   const db = readDB();
   db.results = {};
+  if (!db.bracketState) db.bracketState = {};
+  db.bracketState.activeRound = 'r32';
   writeDB(db);
-  console.log('Results cleared.');
+  console.log('Results cleared. Active round reset to r32.');
 }
 
 const cmd = process.argv[2] || 'help';
 (async () => {
-  switch(cmd) {
-    case 'seed':    await seed();   break;
-    case 'results': results();      break;
-    case 'scores':  scores();       break;
-    case 'clean':   clean();        break;
-    case 'reset':   reset();        break;
-    case 'full':    await seed(); results(); scores(); break;
+  switch (cmd) {
+    case 'seed':    await seed();            break;
+    case 'r32':     r32results();            break;
+    case 'scores':  scores();               break;
+    case 'clean':   clean();                break;
+    case 'reset':   reset();                break;
+    case 'full':    await seed(); r32results(); scores(); break;
     default:
-      console.log(`Usage: node simulate.js <command>
-  seed     — add 10 fake Icelandic users with random picks
-  results  — set random results for Round of 32
-  scores   — print leaderboard to terminal
-  clean    — remove all fake users
-  reset    — clear all results
-  full     — seed + results + scores in one go`);
+      console.log(`
+Usage: node simulate.js <command>
+
+  seed    — add 10 fake users with random r32 picks
+  r32     — confirm r32 results + open r16 for picking
+  scores  — print leaderboard
+  clean   — remove all fake users (keeps real accounts)
+  reset   — clear results, set active round back to r32
+  full    — seed + r32 results + scores in one go
+`);
   }
 })();
