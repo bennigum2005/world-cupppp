@@ -162,7 +162,7 @@ function makeCard(matchId) {
   function mkFC(team, iWon, iLost, isPicked) {
     const el = document.createElement('div');
     if (result && isPicked && iLost) el.className = 'flag-circle fc-wrong';
-    else if (result) el.className = 'flag-circle' + (iWon?' fc-win':iLost?' fc-lose':'');
+    else if (result) el.className = 'flag-circle' + (iLost?' fc-lose':'');
     else el.className = 'flag-circle' + (isPicked?' fc-picked':'');
     el.innerHTML = flagImg(team ? team.f : null);
     return el;
