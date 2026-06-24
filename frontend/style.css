@@ -105,7 +105,7 @@ body {
 .flag-circle img{width:36px;height:24px;object-fit:cover;border-radius:0;}
 .flag-circle.fc-win{border-color:var(--green);box-shadow:0 0 10px rgba(34,197,94,.2);}
 .flag-circle.fc-lose{opacity:.25;}
-.flag-circle.fc-correct{border-color:var(--green);box-shadow:0 0 12px rgba(34,197,94,.4);background:rgba(34,197,94,.1);}
+.flag-circle.fc-correct{border-color:var(--green);box-shadow:0 0 16px rgba(34,197,94,.7);border-width:3px;}
 .flag-circle.fc-wrong{border-color:var(--red);box-shadow:0 0 16px rgba(239,68,68,.7);border-width:3px;}
 .flag-circle.fc-picked{border-color:var(--gold);box-shadow:0 0 10px rgba(232,232,232,.2);}
 .vs-mid{display:flex;flex-direction:column;align-items:center;flex:1;min-width:0;}
