@@ -304,7 +304,9 @@ function makeCentreCol() {
 
 /* ══ RENDER ══ */
 function render() {
-  const outer = document.getElementById('bouter'); if (!outer) return;
+  const outer = document.getElementById('bouter');
+  console.log('[render] bouter found:', !!outer, '| M keys:', Object.keys(M).length, '| teams:', teams.length, '| user:', !!user);
+  if (!outer) return;
   outer.innerHTML = '';
   const left = document.createElement('div'); left.className = 'half hleft';
   left.appendChild(makeCol(['l_r16_0','l_r16_1','l_r16_2','l_r16_3','l_r16_4','l_r16_5','l_r16_6','l_r16_7'],'Round of 16'));
