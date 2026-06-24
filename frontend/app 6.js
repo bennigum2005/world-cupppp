@@ -50,17 +50,6 @@ function flagImg(code, size=32) {
   return `<img src="${src}" width="${size}" height="${Math.round(size*0.67)}" alt="${code}" style="display:block;object-fit:cover;border-radius:2px;"/>`;
 }
 
-/* ── State ── */
-let user = null;
-let adminPass = sessionStorage.getItem('adminPass') || null;
-let locked = false, tournamentStarted = false;
-let activeRound = 'r32';   // which round is open for picking
-let teams = DEMO.slice();
-let picks = {};            // flat: { matchId: {n,f} } — user's picks
-let results = {};          // flat: { matchId: {n,f} } — confirmed results
-let M = {};                // match objects for rendering
-let entries = [];
-let currentTab = 'bracket';
 
 /* ══════════════════════════════════════
    API
