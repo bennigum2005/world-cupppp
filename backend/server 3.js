@@ -324,15 +324,12 @@ app.get('/api/leaderboard', (req, res) => {
   const db = readDB();
   const results = db.results || {};
   const scored = db.entries.map(e => {
-    let score = 0;
     const picks = e.picks || {};
-    for (const roundId of Object.keys(picks)) {
-      const rPicks = picks[roundId] || {};
-      const rResults = results[roundId] || {};
-      for (const matchKey of Object.keys(rPicks)) {
-        if (rPicks[matchKey] && rResults[matchKey] && rPicks[matchKey].n === rResults[matchKey].n) score++;
-      }
-    }
+    // picks is flat: { matchId: {n, f}, ... }
+    const score = Object.entries(results).filter(([matchId, result]) => {
+      const pick = picks[matchId];
+      return pick && result && pick.n === result.n;
+    }).length;
     return { name: e.name, email: e.email, score, locked: e.locked };
   }).sort((a,b) => b.score - a.score);
   res.json(scored);
