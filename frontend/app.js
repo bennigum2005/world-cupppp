@@ -369,13 +369,14 @@ async function renderLeaderboard() {
     const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`;
     const isMe=user&&e.email===user.email;
     const init=e.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const scoreDisplay = e.locked ? e.score : '<span style="color:var(--t3);font-size:11px;">—</span>';
     html+=`<tr style="${isMe?'background:rgba(232,232,232,.05);':''}">
-      <td class="lb-rank">${medal}</td>
+      <td class="lb-rank">${e.locked?medal:'—'}</td>
       <td><div style="display:flex;align-items:center;gap:9px;">
         <div class="av" style="width:28px;height:28px;font-size:10px;background:${isMe?'var(--gold)':'var(--s3)'};color:${isMe?'#111':'var(--t2)'};">${init}</div>
-        <span style="font-weight:${isMe?700:500};color:${isMe?'var(--gold)':'var(--text)'};">${e.name}${isMe?' (you)':''}</span>
+        <span style="font-weight:${isMe?700:500};color:${isMe?'var(--gold)':e.locked?'var(--text)':'var(--t3)'};">${e.name}${isMe?' (you)':''}</span>
       </div></td>
-      <td class="lb-score">${e.score}</td>
+      <td class="lb-score">${scoreDisplay}</td>
       <td><span class="bdg ${e.locked?'bg':'bd'}">${e.locked?'🔒':'Open'}</span></td>
     </tr>`;
   }

@@ -323,14 +323,16 @@ app.get('/api/reset-bracket', (req, res) => {
 app.get('/api/leaderboard', (req, res) => {
   const db = readDB();
   const results = db.results || {};
+  const tournamentStarted = db.bracketState?.tournamentStarted || false;
   const scored = db.entries.map(e => {
     const picks = e.picks || {};
-    // picks is flat: { matchId: {n, f}, ... }
-    const score = Object.entries(results).filter(([matchId, result]) => {
+    // Only count points if user locked their bracket before tournament started
+    const eligible = e.locked;
+    const score = eligible ? Object.entries(results).filter(([matchId, result]) => {
       const pick = picks[matchId];
       return pick && result && pick.n === result.n;
-    }).length;
-    return { name: e.name, email: e.email, score, locked: e.locked };
+    }).length : 0;
+    return { name: e.name, email: e.email, score, locked: e.locked, eligible };
   }).sort((a,b) => b.score - a.score);
   res.json(scored);
 });
