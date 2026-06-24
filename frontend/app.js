@@ -15,7 +15,7 @@ function flagImg(code, size=32) {
 
 /* ── Constants ── */
 const ROUND_ORDER = ['r32','r16','qf','sf','third','final'];
-const ROUND_LABELS = { r32:'Round of 32', r16:'Round of 16', qf:'Quarter-finals', sf:'Semi-finals', third:'3rd Place', final:'Final' };
+const ROUND_LABELS = { r32:'Leikir 32', r16:'16-liða úrslit', qf:'Fjórðungsúrslit', sf:'Undanúrslit', third:'3. sæti', final:'Úrslit' };
 const ROUND_MATCHES = {
   r32:   ['l_r16_0','l_r16_1','l_r16_2','l_r16_3','l_r16_4','l_r16_5','l_r16_6','l_r16_7',
            'r_r16_0','r_r16_1','r_r16_2','r_r16_3','r_r16_4','r_r16_5','r_r16_6','r_r16_7'],
@@ -132,7 +132,7 @@ function makeCard(matchId) {
   const m = M[matchId];
   if (!m) {
     const wrap = document.createElement('div'); wrap.className = 'mu';
-    const d = document.createElement('div'); d.className = 'tbd-card'; d.textContent = 'TBD';
+    const d = document.createElement('div'); d.className = 'tbd-card'; d.textContent = 'Óþekkt';
     wrap.appendChild(d); return wrap;
   }
   const pickable = isPickable(matchId);
@@ -143,7 +143,7 @@ function makeCard(matchId) {
   const wrap = document.createElement('div'); wrap.className = 'mu';
 
   if (!t1 && !t2) {
-    const d = document.createElement('div'); d.className = 'tbd-card'; d.textContent = 'TBD';
+    const d = document.createElement('div'); d.className = 'tbd-card'; d.textContent = 'Óþekkt';
     wrap.appendChild(d); return wrap;
   }
   const card = document.createElement('div');
@@ -248,9 +248,9 @@ function makeCentreCol() {
 
   const fvs=document.createElement('div'); fvs.className='fin-vs'; fvs.textContent='VS';
   const frow=document.createElement('div'); frow.className='fin-teams'; frow.append(ff1,fvs,ff2);
-  const lbl=document.createElement('div'); lbl.className='finlbl'; lbl.textContent='Final';
+  const lbl=document.createElement('div'); lbl.className='finlbl'; lbl.textContent='Úrslit';
   const trophy=document.createElement('div'); trophy.className='trophy-ring'; trophy.textContent='🏆';
-  const cl=document.createElement('div'); cl.className='champ-lbl'; cl.textContent='World Champion';
+  const cl=document.createElement('div'); cl.className='champ-lbl'; cl.textContent='Heimsmeistari';
   const cv=document.createElement('div'); cv.className='champ-val';
   cv.style.color=result?(correct?'var(--green)':wrong?'var(--red)':'var(--gold2)'):'var(--t2)';
   cv.innerHTML=result?`<span style='display:inline-flex;align-items:center;gap:5px;'>${flagImg(result.f,20)} ${result.n}${correct?' ✓':wrong?' ✗':''}</span>`:myPick?`<span style='display:inline-flex;align-items:center;gap:5px;'>→ ${flagImg(myPick.f,20)} ${myPick.n}</span>`:'—';
@@ -294,7 +294,7 @@ function makeCentreCol() {
   const tpLbl=document.createElement('div'); tpLbl.className='tp-lbl'; tpLbl.textContent='🥉 3rd Place';
   const tcv=document.createElement('div'); tcv.className='champ-val'; tcv.style.fontSize='11px';
   tcv.style.color=tpResult?(tpCorrect?'var(--green)':tpWrong?'var(--red)':'var(--gold2)'):'var(--t2)';
-  tcv.innerHTML=tpResult?`<span style='display:inline-flex;align-items:center;gap:4px;'>${flagImg(tpResult.f,16)} ${tpResult.n}${tpCorrect?' ✓':tpWrong?' ✗':''}</span>`:tpPick?`<span style='display:inline-flex;align-items:center;gap:4px;'>→ ${flagImg(tpPick.f,16)} ${tpPick.n}</span>`:(tp1&&tp2?'Pick winner':'TBD');
+  tcv.innerHTML=tpResult?`<span style='display:inline-flex;align-items:center;gap:4px;'>${flagImg(tpResult.f,16)} ${tpResult.n}${tpCorrect?' ✓':tpWrong?' ✗':''}</span>`:tpPick?`<span style='display:inline-flex;align-items:center;gap:4px;'>→ ${flagImg(tpPick.f,16)} ${tpPick.n}</span>`:(tp1&&tp2?'Veldu sigurvegara':'Óþekkt');
   tpCard.append(tpLbl,trow,tcv);
   if(tpPickable&&tp1&&tp2) {
     [tf1,tf2].forEach((el,i)=>{ el.style.cursor='pointer'; el.addEventListener('click',()=>pick('third',i===0?tp1:tp2)); el.addEventListener('mouseenter',()=>el.style.borderColor='var(--gold)'); el.addEventListener('mouseleave',()=>el.style.borderColor=''); });
@@ -310,17 +310,17 @@ function render() {
   if (!outer) return;
   outer.innerHTML = '';
   const left = document.createElement('div'); left.className = 'half hleft';
-  left.appendChild(makeCol(['l_r16_0','l_r16_1','l_r16_2','l_r16_3','l_r16_4','l_r16_5','l_r16_6','l_r16_7'],'Round of 16'));
-  left.appendChild(makeCol(['l_qf_0','l_qf_1','l_qf_2','l_qf_3'],'Quarter-finals'));
-  left.appendChild(makeCol(['l_sf_0','l_sf_1'],'Semi-finals'));
-  left.appendChild(makeCol(['l_sff'],'SF Final'));
+  left.appendChild(makeCol(['l_r16_0','l_r16_1','l_r16_2','l_r16_3','l_r16_4','l_r16_5','l_r16_6','l_r16_7'],'16-liða úrslit'));
+  left.appendChild(makeCol(['l_qf_0','l_qf_1','l_qf_2','l_qf_3'],'Fjórðungsúrslit'));
+  left.appendChild(makeCol(['l_sf_0','l_sf_1'],'Undanúrslit'));
+  left.appendChild(makeCol(['l_sff'],'Undanúrslit lokaleikur'));
   outer.appendChild(left);
   outer.appendChild(makeCentreCol());
   const right = document.createElement('div'); right.className = 'half hright';
-  right.appendChild(makeCol(['r_sff'],'SF Final'));
-  right.appendChild(makeCol(['r_sf_0','r_sf_1'],'Semi-finals'));
-  right.appendChild(makeCol(['r_qf_0','r_qf_1','r_qf_2','r_qf_3'],'Quarter-finals'));
-  right.appendChild(makeCol(['r_r16_0','r_r16_1','r_r16_2','r_r16_3','r_r16_4','r_r16_5','r_r16_6','r_r16_7'],'Round of 16'));
+  right.appendChild(makeCol(['r_sff'],'Undanúrslit lokaleikur'));
+  right.appendChild(makeCol(['r_sf_0','r_sf_1'],'Undanúrslit'));
+  right.appendChild(makeCol(['r_qf_0','r_qf_1','r_qf_2','r_qf_3'],'Fjórðungsúrslit'));
+  right.appendChild(makeCol(['r_r16_0','r_r16_1','r_r16_2','r_r16_3','r_r16_4','r_r16_5','r_r16_6','r_r16_7'],'16-liða úrslit'));
   outer.appendChild(right);
   renderProg();
   setStatus();
@@ -350,7 +350,7 @@ function setStatus() {
   const b = document.getElementById('sbadge'); if (!b) return;
   const roundLabel = ROUND_LABELS[activeRound] || '';
   const cls   = tournamentStarted ? 'live' : locked ? 'locked' : 'open';
-  const label = tournamentStarted ? 'Tournament live' : locked ? 'Locked' : `Open · ${roundLabel}`;
+  const label = tournamentStarted ? 'Mót í gangi' : locked ? 'Læst' : `Opið · ${roundLabel}`;
   b.className = `sbadge ${cls}`;
   const sl = document.getElementById('slabel'); if (sl) sl.textContent = label;
 }
@@ -374,7 +374,7 @@ async function renderLeaderboard() {
       <td class="lb-rank">${e.locked?medal:'—'}</td>
       <td><div style="display:flex;align-items:center;gap:9px;">
         <div class="av" style="width:28px;height:28px;font-size:10px;background:${isMe?'var(--gold)':'var(--s3)'};color:${isMe?'#111':'var(--t2)'};">${init}</div>
-        <span style="font-weight:${isMe?700:500};color:${isMe?'var(--gold)':e.locked?'var(--text)':'var(--t3)'};">${e.name}${isMe?' (you)':''}</span>
+        <span style="font-weight:${isMe?700:500};color:${isMe?'var(--gold)':e.locked?'var(--text)':'var(--t3)'};">${e.name}${isMe?' (þú)':''}</span>
       </div></td>
       <td class="lb-score">${scoreDisplay}</td>
       <td><span class="bdg ${e.locked?'bg':'bd'}">${e.locked?'🔒':'Open'}</span></td>
@@ -443,16 +443,16 @@ async function startTournament(){if(!confirm('Lock all picks?'))return;tournamen
 async function stopTournament(){tournamentStarted=false;await api('/bracket-state',{method:'PUT',body:JSON.stringify({tournamentStarted:false})});render();}
 async function manualSync(){
   const btn=document.getElementById('sync-btn'),st=document.getElementById('sync-status');
-  if(btn){btn.disabled=true;btn.textContent='↻ Syncing…';}
+  if(btn){btn.disabled=true;btn.textContent='↻ Samstilli…';}
   const r=await api('/admin/sync-results',{method:'POST'});
-  if(btn){btn.disabled=false;btn.textContent='↻ Sync results';}
+  if(btn){btn.disabled=false;btn.textContent='↻ Samstilla niðurstöður';}
   if(r?.ok){if(st)st.textContent=`Synced · ${r.lastSync?new Date(r.lastSync).toLocaleTimeString():'now'}`;const res=await api('/results');if(res&&!res.error){results=res;propagateResults();render();}}
 }
 async function adminResetEntry(email){if(!confirm(`Reset picks for ${email}?`))return;const r=await api(`/admin/entries/${encodeURIComponent(email)}/reset`,{method:'PUT'});if(r?.ok){await loadEntries();renderEntries();}}
 async function adminUnlockEntry(email){if(!confirm(`Unlock picks for ${email}?`))return;const r=await api(`/admin/entries/${encodeURIComponent(email)}/unlock`,{method:'PUT'});if(r?.ok){await loadEntries();renderEntries();}}
 async function adminResetMyPicks(){if(!user)return;const r=await api(`/admin/entries/${encodeURIComponent(user.email)}/reset`,{method:'PUT'});if(r?.ok){picks={};user.locked=false;sessionStorage.setItem('wcUser',JSON.stringify(user));render();}}
 async function loadEntries(){if(!adminPass)return;const d=await api('/entries');if(Array.isArray(d))entries=d;}
-async function loadSyncStatus(){const r=await api('/admin/sync-status');const st=document.getElementById('sync-status');if(r&&st)st.textContent=`Last sync: ${r.lastSync?new Date(r.lastSync).toLocaleTimeString():'never'}`;}
+async function loadSyncStatus(){const r=await api('/admin/sync-status');const st=document.getElementById('sync-status');if(r&&st)st.textContent=`Last sync: ${r.lastSync?new Date(r.lastSync).toLocaleTimeString():'aldrei'}`;}
 function logout(){sessionStorage.removeItem('wcUser');window.location.href='/';}
 
 /* ══ BOOT ══ */

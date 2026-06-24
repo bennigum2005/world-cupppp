@@ -60,36 +60,36 @@
   </div>
   <div class="box">
     <div class="tabs">
-      <div class="tab" id="tab-login" onclick="show('login')">Log in</div>
-      <div class="tab active" id="tab-signup" onclick="show('signup')">Create account</div>
+      <div class="tab" id="tab-login" onclick="show('login')">Innskrá</div>
+      <div class="tab active" id="tab-signup" onclick="show('signup')">Búa til aðgang</div>
     </div>
 
     <div id="form-login" style="display:none;">
       <div class="form">
-        <div class="field"><label>Email</label><input type="email" id="l-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')login()"/></div>
-        <div class="field"><label>Password</label>
-          <div class="pw-wrap"><input type="password" id="l-pass" placeholder="Your password" onkeydown="if(event.key==='Enter')login()"/><button class="pw-eye" onclick="togglePw('l-pass',this)" type="button">👁</button></div>
+        <div class="field"><label>Netfang</label><input type="email" id="l-email" placeholder="netfang@dæmi.is" onkeydown="if(event.key==='Enter')login()"/></div>
+        <div class="field"><label>Lykilorð</label>
+          <div class="pw-wrap"><input type="password" id="l-pass" placeholder="Lykilorðið þitt" onkeydown="if(event.key==='Enter')login()"/><button class="pw-eye" onclick="togglePw('l-pass',this)" type="button">👁</button></div>
         </div>
         <div class="err" id="l-err"></div>
-        <button class="submit" id="l-btn" onclick="login()">Log in →</button>
+        <button class="submit" id="l-btn" onclick="login()">Innskrá →</button>
       </div>
     </div>
 
     <div id="form-signup">
       <div class="form">
-        <div class="field"><label>Full name</label><input type="text" id="s-name" placeholder="John Smith"/></div>
-        <div class="field"><label>Email</label><input type="email" id="s-email" placeholder="you@example.com"/></div>
-        <div class="field"><label>Phone number</label><input type="tel" id="s-phone" placeholder="+354 123 4567"/></div>
-        <div class="field"><label>Password</label>
-          <div class="pw-wrap"><input type="password" id="s-pass" placeholder="At least 6 characters" oninput="strength(this.value)"/><button class="pw-eye" onclick="togglePw('s-pass',this)" type="button">👁</button></div>
+        <div class="field"><label>Fullt nafn</label><input type="text" id="s-name" placeholder="Jón Jónsson"/></div>
+        <div class="field"><label>Netfang</label><input type="email" id="s-email" placeholder="netfang@dæmi.is"/></div>
+        <div class="field"><label>Símanúmer</label><input type="tel" id="s-phone" placeholder="+354 123 4567"/></div>
+        <div class="field"><label>Lykilorð</label>
+          <div class="pw-wrap"><input type="password" id="s-pass" placeholder="Að minnsta kosti 6 stafir" oninput="strength(this.value)"/><button class="pw-eye" onclick="togglePw('s-pass',this)" type="button">👁</button></div>
           <div class="strength"><div class="strength-fill" id="s-fill" style="width:0"></div></div>
         </div>
-        <div class="field"><label>Confirm password</label>
-          <div class="pw-wrap"><input type="password" id="s-confirm" placeholder="Repeat password" onkeydown="if(event.key==='Enter')signup()"/><button class="pw-eye" onclick="togglePw('s-confirm',this)" type="button">👁</button></div>
+        <div class="field"><label>Staðfesta lykilorð</label>
+          <div class="pw-wrap"><input type="password" id="s-confirm" placeholder="Endurtaktu lykilorð" onkeydown="if(event.key==='Enter')signup()"/><button class="pw-eye" onclick="togglePw('s-confirm',this)" type="button">👁</button></div>
         </div>
         <div class="err" id="s-err"></div>
         <div class="ok"  id="s-ok"></div>
-        <button class="submit" id="s-btn" onclick="signup()">Create account →</button>
+        <button class="submit" id="s-btn" onclick="signup()">Búa til aðgang →</button>
       </div>
     </div>
   </div>
@@ -127,8 +127,8 @@ async function login(){
   if(!email||!pass){err.textContent='Please fill in all fields.';return;}
   btn.disabled=true;btn.textContent='Logging in…';
   const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})}).then(r=>r.json()).catch(()=>null);
-  btn.disabled=false;btn.textContent='Log in →';
-  if(!r||r.error){err.textContent=r?.error||'Could not log in.';return;}
+  btn.disabled=false;btn.textContent='Innskrá →';
+  if(!r||r.error){err.textContent=r?.error||'Gat ekki skráð inn.';return;}
   sessionStorage.setItem('wcUser',JSON.stringify(r.user));
   window.location.href='/bracket';
 }
@@ -145,13 +145,13 @@ async function signup(){
   if(!name){err.textContent='Please enter your full name.';return;}
   if(!email||!/^[^@]+@[^@]+\.[^@]+$/.test(email)){err.textContent='Please enter a valid email.';return;}
   if(!phone){err.textContent='Please enter your phone number.';return;}
-  if(pass.length<6){err.textContent='Password must be at least 6 characters.';return;}
-  if(pass!==confirm){err.textContent='Passwords do not match.';return;}
+  if(pass.length<6){err.textContent='Lykilorð verður að vera að minnsta kosti 6 stafir.';return;}
+  if(pass!==confirm){err.textContent='Lykilorð stemma ekki.';return;}
   btn.disabled=true;btn.textContent='Creating account…';
   const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,phone,password:pass})}).then(r=>r.json()).catch(()=>null);
-  btn.disabled=false;btn.textContent='Create account →';
-  if(!r||r.error){err.textContent=r?.error||'Could not create account.';return;}
-  ok.textContent='Account created! Logging you in…';
+  btn.disabled=false;btn.textContent='Búa til aðgang →';
+  if(!r||r.error){err.textContent=r?.error||'Gat ekki búið til aðgang.';return;}
+  ok.textContent='Aðgangur búinn til! Skrái þig inn…';
   sessionStorage.setItem('wcUser',JSON.stringify(r.user));
   setTimeout(()=>window.location.href='/bracket',800);
 }

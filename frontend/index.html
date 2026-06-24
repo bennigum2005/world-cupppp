@@ -14,38 +14,38 @@
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
     <div class="sbadge open" id="sbadge"><div class="sdot"></div><span id="slabel">Picks open</span></div>
-    <button class="btn" id="logout-btn" onclick="logout()" style="font-size:11px;display:none;">Log out</button>
+    <button class="btn" id="logout-btn" onclick="logout()" style="font-size:11px;display:none;">Útskrá</button>
   </div>
 </header>
 
 <nav class="nav">
-  <div class="ntab active" onclick="showTab('bracket',this)">Bracket</div>
-  <div class="ntab" onclick="showTab('leaderboard',this)">🏆 Leaderboard</div>
-  <div class="ntab" onclick="showTab('rules',this)">Rules & Prizes</div>
-  <div class="ntab" id="tab-entries" onclick="showTab('entries',this)" style="display:none;">Entries</div>
+  <div class="ntab active" onclick="showTab('bracket',this)">Riðlar</div>
+  <div class="ntab" onclick="showTab('leaderboard',this)">🏆 Stigatafla</div>
+  <div class="ntab" onclick="showTab('rules',this)">Reglur & Verðlaun</div>
+  <div class="ntab" id="tab-entries" onclick="showTab('entries',this)" style="display:none;">Þátttakendur</div>
 </nav>
 
 <div class="app">
 
   <!-- ADMIN BAR -->
   <div class="abar" id="abar">
-    <div class="albl">⚙ Admin controls</div>
+    <div class="albl">⚙ Stjórnborð</div>
     <div class="aacts">
-      <label style="font-size:11px;color:var(--t2);">Active round:</label>
+      <label style="font-size:11px;color:var(--t2);">Virkur leikur:</label>
       <select id="round-selector" class="btn" style="font-size:11px;padding:5px 10px;background:var(--s2);color:var(--text);" onchange="setActiveRound(this.value)">
-        <option value="r32">Round of 32</option>
-        <option value="r16">Round of 16</option>
-        <option value="qf">Quarter-finals</option>
-        <option value="sf">Semi-finals</option>
+        <option value="r32">Leikir 32</option>
+        <option value="r16">16-liða úrslit</option>
+        <option value="qf">Fjórðungsúrslit</option>
+        <option value="sf">Undanúrslit</option>
         <option value="third">3rd Place</option>
-        <option value="final">Final</option>
+        <option value="final">Úrslit</option>
       </select>
-      <button class="btn btn-p" onclick="startTournament()">🚀 Lock all picks</button>
+      <button class="btn btn-p" onclick="startTournament()">🚀 Læsa öllu vali</button>
       <button class="btn" onclick="stopTournament()">Reopen picks</button>
-      <button class="btn" onclick="manualSync()" id="sync-btn">↻ Sync results</button>
+      <button class="btn" onclick="manualSync()" id="sync-btn">↻ Samstilla niðurstöður</button>
       <span id="sync-status" style="font-size:11px;color:var(--t2);"></span>
       <button class="btn btn-d" onclick="adminResetMyPicks()" style="margin-left:auto;">Reset my picks</button>
-      <button class="btn" onclick="adminLogout()">Admin logout</button>
+      <button class="btn" onclick="adminLogout()">Útskrá stjórnanda</button>
     </div>
   </div>
 
