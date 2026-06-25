@@ -90,7 +90,14 @@ function propagateResults() {
 /* ══ ROUND LOGIC ══ */
 function isPickable(matchId) {
   if (!user || tournamentStarted) return false;
-  if (user.locked && user.lockedRound && user.lockedRound === activeRound) return false;
+  // third and final are picked together
+  const effectiveActive = (activeRound === 'final') ? 'third' : activeRound;
+  const effectiveLocked = (user.lockedRound === 'final') ? 'third' : user.lockedRound;
+  if (user.locked && effectiveLocked === effectiveActive) return false;
+  // When activeRound is 'third', both third and final are pickable
+  if (activeRound === 'third' || activeRound === 'final') {
+    return ['third','final'].some(r => (ROUND_MATCHES[r]||[]).includes(matchId));
+  }
   return (ROUND_MATCHES[activeRound] || []).includes(matchId);
 }
 
