@@ -220,3 +220,8 @@ body {
   .rp-prizes{grid-template-columns:repeat(2,1fr);}
 }
 
+
+@keyframes slideUp {
+  from { opacity:0; transform:translateX(-50%) translateY(20px); }
+  to   { opacity:1; transform:translateX(-50%) translateY(0); }
+}

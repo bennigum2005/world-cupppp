@@ -116,6 +116,49 @@ async function pick(matchId, team) {
   await api(`/entries/${encodeURIComponent(user.email)}/picks`, {
     method: 'PUT', body: JSON.stringify({ picks })
   });
+  // Check if user just completed all picks for the active round
+  const activeIds = ROUND_MATCHES[activeRound] || [];
+  const madePicks = activeIds.filter(id => picks[id]).length;
+  const isLockedThisRound = user.locked && user.lockedRound === activeRound;
+  if (madePicks === activeIds.length && !isLockedThisRound) {
+    showLockPrompt();
+  }
+}
+
+function showLockPrompt() {
+  const existing = document.getElementById('lock-prompt');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'lock-prompt';
+  overlay.style.cssText = `
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--s2);border:1px solid var(--gold);border-radius:14px;
+    padding:18px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;
+    box-shadow:0 0 30px rgba(245,197,24,.25);z-index:9999;
+    animation:slideUp .3s ease;max-width:320px;width:90%;text-align:center;
+  `;
+  overlay.innerHTML = `
+    <div style="font-size:22px;">🔒</div>
+    <div style="font-weight:700;color:var(--gold);font-size:14px;">Allt val gert!</div>
+    <div style="font-size:12px;color:var(--t2);">Mundu að læsa vali þínu — það verður ekki hægt að breyta eftir þetta.</div>
+    <div style="display:flex;gap:10px;width:100%;">
+      <button onclick="document.getElementById('lock-prompt').remove()" 
+        style="flex:1;font-family:inherit;font-size:12px;padding:9px;border-radius:8px;
+        border:1px solid var(--b2);background:var(--s3);color:var(--t2);cursor:pointer;">
+        Síðar
+      </button>
+      <button onclick="lockMyPicks();document.getElementById('lock-prompt').remove()"
+        style="flex:1;font-family:inherit;font-size:12px;padding:9px;border-radius:8px;
+        border:none;background:var(--gold);color:#111;font-weight:700;cursor:pointer;">
+        🔒 Læsa núna
+      </button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Auto-dismiss after 10 seconds
+  setTimeout(() => { if (document.getElementById('lock-prompt')) document.getElementById('lock-prompt').remove(); }, 10000);
 }
 async function lockMyPicks() {
   if (!user) return;
