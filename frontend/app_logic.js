@@ -184,8 +184,6 @@ function makeCard(matchId) {
 
   const rw1=!!(result&&t1&&result.n===t1.n), rl1=!!(result&&t1&&!rw1);
   const rw2=!!(result&&t2&&result.n===t2.n), rl2=!!(result&&t2&&!rw2);
-  const correct=!!(myPick&&result&&myPick.n===result.n);
-  const wrong  =!!(myPick&&result&&myPick.n!==result.n&&(p1||p2));
   const isPast = ROUND_ORDER.indexOf(activeRound) > ROUND_ORDER.indexOf(getRoundForMatch(matchId));
   if (!result && !inActiveRound && !isPast) card.style.opacity = '0.45';
 
@@ -193,6 +191,8 @@ function makeCard(matchId) {
   const p1=!!(myPick&&t1&&myPick.n===t1.n);
   const p2=!!(myPick&&t2&&myPick.n===t2.n);
   // If neither matched (team may have been renamed/swapped), skip silently
+  const correct=!!(myPick&&result&&myPick.n===result.n);
+  const wrong  =!!(myPick&&result&&myPick.n!==result.n);
 
   function mkFC(team, iWon, iLost, isPicked) {
     const el = document.createElement('div');
@@ -259,7 +259,7 @@ function makeCentreCol() {
   const myPick=picks['final']||null;
   const result=results['final']||null;
   const correct=!!(myPick&&result&&myPick.n===result.n);
-  const wrong  =!!(myPick&&result&&myPick.n!==result.n&&(p1||p2));
+  const wrong  =!!(myPick&&result&&myPick.n!==result.n);
 
   const card=document.createElement('div');
   card.className='fin-card'+(pickable&&t1&&t2?'':' mlocked');
