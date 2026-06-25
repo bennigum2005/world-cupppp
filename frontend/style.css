@@ -96,8 +96,8 @@ body {
 .hright .rcol:not(:first-child) .mu::after{content:'';position:absolute;left:0;top:28%;bottom:28%;width:1px;background:var(--b2);}
 
 /* MATCH CARDS */
-.mcard{display:flex;flex-direction:column;align-items:center;gap:5px;background:var(--s2);border:1px solid var(--b1);border-radius:10px;padding:9px 7px;width:100%;transition:all .15s;}
-.mcard:hover:not(.mlocked){border-color:var(--gold-dim);background:var(--s3);}
+.mcard{display:flex;flex-direction:column;align-items:center;gap:5px;background:var(--s2);border:1px solid var(--gold-dim);border-radius:10px;padding:9px 7px;width:100%;transition:all .15s;}
+.mcard:hover:not(.mlocked){border-color:var(--gold);background:var(--s3);}
 .mcard.mlocked{cursor:default;}
 .tbd-card{display:flex;align-items:center;justify-content:center;background:var(--s1);border:1px dashed var(--b2);border-radius:10px;padding:10px;width:100%;font-size:10px;color:var(--t3);min-height:58px;}
 .mcard-teams{display:flex;align-items:center;gap:5px;width:100%;}
@@ -121,7 +121,7 @@ body {
 
 /* CENTRE COLUMN */
 .ccol{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:.5rem .75rem;min-width:130px;gap:10px;}
-.fin-card{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--b1);border-radius:12px;padding:12px 10px;width:100%;transition:all .15s;}
+.fin-card{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--gold-dim);border-radius:12px;padding:12px 10px;width:100%;transition:all .15s;}
 .fin-card:hover:not(.mlocked){border-color:var(--gold-dim);}
 .fin-card.mlocked{cursor:default;}
 .finlbl{font-size:8px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(232,232,232,.4);}
