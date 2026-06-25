@@ -260,8 +260,10 @@ app.put('/api/entries/:email/lock', (req, res) => {
   const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
   if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
   if (db.bracketState.tournamentStarted) return res.status(403).json({ error: 'Tournament already started.' });
+  const lockRound = req.body?.round || db.bracketState.activeRound || 'r32';
   db.entries[idx].locked = true;
-  db.entries[idx].lockedRound = req.body?.round || db.bracketState.activeRound || 'r32';
+  // third and final are locked together — always store as 'third'
+  db.entries[idx].lockedRound = (lockRound === 'final') ? 'third' : lockRound;
   db.entries[idx].lockedAt = new Date().toISOString();
   writeDB(db); res.json({ ok: true });
 });
@@ -327,7 +329,7 @@ app.get('/api/leaderboard', (req, res) => {
   const scored = db.entries.map(e => {
     const picks = e.picks || {};
     // Only count points if user locked their bracket before tournament started
-    const eligible = e.locked;
+    const eligible = e.locked && e.lockedRound; // must have locked at least one round
     const score = eligible ? Object.entries(results).filter(([matchId, result]) => {
       const pick = picks[matchId];
       return pick && result && pick.n === result.n;

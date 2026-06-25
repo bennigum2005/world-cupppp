@@ -209,7 +209,8 @@ async function addRoundPicks(roundId) {
       if (t1 && t2) e.picks[id] = rnd([t1, t2]);
     }
     e.locked = true;
-    e.lockedRound = roundId;
+    // third and final are locked together — store as 'third'
+    e.lockedRound = (roundId === 'final') ? 'third' : roundId;
     e.lockedAt = new Date().toISOString();
   }
   writeDB(db);
@@ -280,7 +281,7 @@ const cmd = process.argv[2] || 'help';
     case 'r16':    simulateRound('r16'); await addRoundPicks('qf');    break;
     case 'qf':     simulateRound('qf');  await addRoundPicks('sf');    break;
     case 'sf':     simulateRound('sf');  await addRoundPicks('third'); await addRoundPicks('final'); break;
-    case 'third':  simulateRound('third');    break;
+    case 'third':  simulateRound('third'); simulateRound('final'); break;
     case 'final':  simulateRound('final');    break;
     case 'lock':   lockAll();                 break;
     case 'scores': scores();                  break;
@@ -296,8 +297,7 @@ Usage: node simulate.js <command>
   r16     — confirm r16 results, open qf  (+ fake users pick qf)
   qf      — confirm qf results, open sf   (+ fake users pick sf)
   sf      — confirm sf results, open 3rd+final (+ fake users pick both)
-  third   — confirm 3rd place result
-  final   — confirm final result + show winner
+  third   — confirm 3rd place + final results together
   lock    — lock all users for current round
   scores  — print leaderboard
   clean   — remove all fake users

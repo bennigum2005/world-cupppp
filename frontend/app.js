@@ -117,9 +117,13 @@ async function pick(matchId, team) {
     method: 'PUT', body: JSON.stringify({ picks })
   });
   // Check if user just completed all picks for the active round
-  const activeIds = ROUND_MATCHES[activeRound] || [];
+  const activeIds = (activeRound === 'third' || activeRound === 'final')
+    ? [...(ROUND_MATCHES['third']||[]), ...(ROUND_MATCHES['final']||[])]
+    : (ROUND_MATCHES[activeRound] || []);
   const madePicks = activeIds.filter(id => picks[id]).length;
-  const isLockedThisRound = user.locked && user.lockedRound === activeRound;
+  const _lr = (user.lockedRound === 'final') ? 'third' : user.lockedRound;
+  const _ar = (activeRound === 'final') ? 'third' : activeRound;
+  const isLockedThisRound = user.locked && _lr === _ar;
   if (madePicks === activeIds.length && !isLockedThisRound) {
     showLockPrompt();
   }
@@ -195,12 +199,14 @@ function makeCard(matchId) {
   const rw1=!!(result&&t1&&result.n===t1.n), rl1=!!(result&&t1&&!rw1);
   const rw2=!!(result&&t2&&result.n===t2.n), rl2=!!(result&&t2&&!rw2);
   const correct=!!(myPick&&result&&myPick.n===result.n);
-  const wrong  =!!(myPick&&result&&myPick.n!==result.n);
+  const wrong  =!!(myPick&&result&&myPick.n!==result.n&&(p1||p2));
   const isPast = ROUND_ORDER.indexOf(activeRound) > ROUND_ORDER.indexOf(getRoundForMatch(matchId));
   if (!result && !inActiveRound && !isPast) card.style.opacity = '0.45';
 
+  // Normalise: compare by name only (team objects may differ between picks/results)
   const p1=!!(myPick&&t1&&myPick.n===t1.n);
   const p2=!!(myPick&&t2&&myPick.n===t2.n);
+  // If neither matched (team may have been renamed/swapped), skip silently
 
   function mkFC(team, iWon, iLost, isPicked) {
     const el = document.createElement('div');
@@ -267,7 +273,7 @@ function makeCentreCol() {
   const myPick=picks['final']||null;
   const result=results['final']||null;
   const correct=!!(myPick&&result&&myPick.n===result.n);
-  const wrong  =!!(myPick&&result&&myPick.n!==result.n);
+  const wrong  =!!(myPick&&result&&myPick.n!==result.n&&(p1||p2));
 
   const card=document.createElement('div');
   card.className='fin-card'+(pickable&&t1&&t2?'':' mlocked');
@@ -375,10 +381,14 @@ function renderProg() {
   s.style.display = 'flex';
   const score = Object.entries(results).filter(([id,r])=>picks[id]?.n===r.n).length;
   const totalResults = Object.keys(results).length;
-  const activeIds = ROUND_MATCHES[activeRound] || [];
+  const activeIds = (activeRound === 'third' || activeRound === 'final')
+    ? [...(ROUND_MATCHES['third']||[]), ...(ROUND_MATCHES['final']||[])]
+    : (ROUND_MATCHES[activeRound] || []);
   const madePicks = activeIds.filter(id => picks[id]).length;
   const roundLabel = ROUND_LABELS[activeRound] || activeRound;
-  const isLockedThisRound = user.locked && user.lockedRound === activeRound;
+  const _lr = (user.lockedRound === 'final') ? 'third' : user.lockedRound;
+  const _ar = (activeRound === 'final') ? 'third' : activeRound;
+  const isLockedThisRound = user.locked && _lr === _ar;
   const lockBtn = isLockedThisRound
     ? '<span style="background:rgba(232,232,232,.12);color:var(--gold);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">🔒 Picks locked</span>'
     : (!tournamentStarted ? `<button class="btn btn-p" onclick="lockMyPicks()" style="font-size:11px;padding:5px 12px;">🔒 Lock my picks</button>` : '');
