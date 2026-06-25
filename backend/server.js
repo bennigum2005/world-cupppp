@@ -249,7 +249,14 @@ app.put('/api/entries/:email/picks', (req, res) => {
   const db = readDB();
   const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
   if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
-  if (db.entries[idx].locked) return res.status(403).json({ error: 'Your picks are locked.' });
+  // Only block if locked for the CURRENT active round
+  const activeRound = db.bracketState?.activeRound || 'r32';
+  const lockedRound = db.entries[idx].lockedRound;
+  const effectiveActive = (activeRound === 'final') ? 'third' : activeRound;
+  const effectiveLocked = (lockedRound === 'final') ? 'third' : lockedRound;
+  if (db.entries[idx].locked && effectiveLocked === effectiveActive) {
+    return res.status(403).json({ error: 'Your picks are locked.' });
+  }
   if (db.bracketState.tournamentStarted) return res.status(403).json({ error: 'Tournament has started.' });
   db.entries[idx].picks = picks || {}; db.entries[idx].champion = champion || null;
   db.entries[idx].lastSaved = new Date().toISOString();
