@@ -190,9 +190,11 @@ function makeCard(matchId) {
   // Normalise: compare by name only (team objects may differ between picks/results)
   const p1=!!(myPick&&t1&&myPick.n===t1.n);
   const p2=!!(myPick&&t2&&myPick.n===t2.n);
-  // If neither matched (team may have been renamed/swapped), skip silently
   const correct=!!(myPick&&result&&myPick.n===result.n);
   const wrong  =!!(myPick&&result&&myPick.n!==result.n);
+  if (myPick && result && !['r32'].includes(getRoundForMatch(matchId))) {
+    console.log(`[${matchId}] pick:${myPick.n} t1:${t1?.n} t2:${t2?.n} result:${result?.n} p1:${p1} p2:${p2} correct:${correct}`);
+  }
 
   function mkFC(team, iWon, iLost, isPicked) {
     const el = document.createElement('div');
