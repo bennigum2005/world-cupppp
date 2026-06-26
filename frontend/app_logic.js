@@ -501,13 +501,13 @@ async function adminUnlockEntry(email){if(!confirm(`Unlock picks for ${email}?`)
 async function adminResetMyPicks(){if(!user)return;const r=await api(`/admin/entries/${encodeURIComponent(user.email)}/reset`,{method:'PUT'});if(r?.ok){picks={};user.locked=false;sessionStorage.setItem('wcUser',JSON.stringify(user));render();}}
 async function loadEntries(){if(!adminPass)return;const d=await api('/entries');if(Array.isArray(d))entries=d;}
 async function loadSyncStatus(){const r=await api('/admin/sync-status');const st=document.getElementById('sync-status');if(r&&st)st.textContent=`Last sync: ${r.lastSync?new Date(r.lastSync).toLocaleTimeString():'aldrei'}`;}
-function logout(){sessionStorage.removeItem('wcUser');window.location.href='/';}
+function logout(){sessionStorage.removeItem('wcUser');window.location.href='/login';}
 
 /* ══ BOOT ══ */
 (async function init() {
   let sessionUser=null;
   try{sessionUser=JSON.parse(sessionStorage.getItem('wcUser'));}catch{}
-  if(!sessionUser){window.location.href='/';return;}
+  if(!sessionUser){window.location.href='/login';return;}
   user=sessionUser;
   document.getElementById('logout-btn').style.display='block';
   if(user.isAdmin){if(adminPass){document.getElementById('abar').classList.add('on');loadSyncStatus();}document.getElementById('tab-entries').style.display='';}
