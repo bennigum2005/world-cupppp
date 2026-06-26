@@ -17,6 +17,46 @@ const BDL_BASE       = 'https://api.balldontlie.io/fifa/worldcup/v1';
 
 app.use(cors());
 app.use(express.json());
+
+/* ══════════════════════════════════════
+   LAUNCH GATE
+   Everyone sees a countdown until 05:00 GMT, Sun Jun 28 2026.
+   Admin bypass: visit  /__enter?key=YOUR_KEY  once to set a 30-day cookie.
+   Set BYPASS_KEY as an env var in production to keep it secret.
+══════════════════════════════════════ */
+const LAUNCH_TS  = Date.parse('2026-06-28T05:00:00Z');
+const BYPASS_KEY = process.env.BYPASS_KEY || 'joiutherji-2026';
+
+function hasBypass(req) {
+  const cookie = req.headers.cookie || '';
+  return cookie.split(';').some(c => c.trim() === 'wc_access=' + BYPASS_KEY);
+}
+
+/* Secret entrance — sets the bypass cookie, then sends you to the real site */
+app.get('/__enter', (req, res) => {
+  if (req.query.key === BYPASS_KEY) {
+    res.setHeader('Set-Cookie', `wc_access=${BYPASS_KEY}; Path=/; Max-Age=2592000; SameSite=Lax`);
+    return res.redirect('/');
+  }
+  res.status(404).send('Not found');
+});
+
+/* Clear the bypass cookie (so you can preview the countdown yourself) */
+app.get('/__leave', (req, res) => {
+  res.setHeader('Set-Cookie', 'wc_access=; Path=/; Max-Age=0; SameSite=Lax');
+  res.send('Bypass cleared.');
+});
+
+/* The gate: until launch, everyone without the cookie gets the countdown */
+app.use((req, res, next) => {
+  if (Date.now() >= LAUNCH_TS) return next();   // launched — open to all
+  if (hasBypass(req)) return next();            // admin bypass cookie present
+  if (req.method === 'GET' && !req.path.startsWith('/api')) {
+    return res.sendFile(path.join(FRONTEND, 'countdown.html'));
+  }
+  return res.status(503).json({ error: 'Leikurinn opnar 28. júní.' });
+});
+
 app.use(express.static(FRONTEND, { index: false }));
 
 /* ══════════════════════════════════════
