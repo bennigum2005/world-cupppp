@@ -27,6 +27,16 @@ app.use(express.json());
 const LAUNCH_TS  = Date.parse('2026-06-28T05:00:00Z');
 const BYPASS_KEY = process.env.BYPASS_KEY || 'joiutherji-2026';
 
+/* Never let HTML pages be cached (CDN/browser) — otherwise a stale homepage
+   keeps showing instead of the countdown / live site. */
+app.use((req, res, next) => {
+  const p = req.path;
+  if (p === '/' || p === '/login' || p === '/bracket' || p.endsWith('.html')) {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  }
+  next();
+});
+
 function hasBypass(req) {
   const cookie = req.headers.cookie || '';
   return cookie.split(';').some(c => c.trim() === 'wc_access=' + BYPASS_KEY);
