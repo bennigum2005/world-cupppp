@@ -15,11 +15,12 @@
       min-height:100vh;min-height:100dvh;
       text-align:center;
       padding:0 20px 11vh;
-      /* Same picture on phone + computer */
-      background:#0a0e14 url('countdown_bg.jpg') center/cover no-repeat fixed;
+      /* PC: wide World Cup image */
+      background:#0a0e14 url('hero.jpg') center/cover no-repeat fixed;
     }
+    /* Phone: portrait poster you sent */
     @media (max-width:700px){
-      body{ padding-bottom:9vh; }
+      body{ background-image:url('countdown_bg.jpg'); padding-bottom:9vh; }
     }
 
     .clock{
