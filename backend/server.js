@@ -57,10 +57,14 @@ app.get('/__leave', (req, res) => {
   res.send('Bypass cleared.');
 });
 
-/* The gate: until launch, everyone without the cookie gets the countdown */
+/* The gate: until launch, everyone without the cookie gets the countdown.
+   Static assets (images/css/js/fonts) must pass through so the countdown
+   page can actually load its own background image. */
+const ASSET_RE = /\.(jpg|jpeg|png|webp|gif|svg|ico|css|js|mjs|woff2?|ttf|map)$/i;
 app.use((req, res, next) => {
   if (Date.now() >= LAUNCH_TS) return next();   // launched — open to all
   if (hasBypass(req)) return next();            // admin bypass cookie present
+  if (ASSET_RE.test(req.path)) return next();   // let assets (e.g. countdown_bg.jpg) load
   if (req.method === 'GET' && !req.path.startsWith('/api')) {
     return res.sendFile(path.join(FRONTEND, 'countdown.html'));
   }
