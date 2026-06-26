@@ -17,7 +17,7 @@ const BDL_BASE       = 'https://api.balldontlie.io/fifa/worldcup/v1';
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(FRONTEND));
+app.use(express.static(FRONTEND, { index: false }));
 
 /* ══════════════════════════════════════
    TEAM NAME MAP
@@ -57,22 +57,22 @@ const ROUND_MAP = {
 };
 
 const DEMO_TEAMS = [
-  {name:'Germany',flag:'🇩🇪'},{name:'Scotland',flag:'🏴󠁧󠁢󠁳󠁣󠁴󠁿'},
-  {name:'France',flag:'🇫🇷'},{name:'Egypt',flag:'🇪🇬'},
-  {name:'Netherlands',flag:'🇳🇱'},{name:'Morocco',flag:'🇲🇦'},
-  {name:'Spain',flag:'🇪🇸'},{name:'Austria',flag:'🇦🇹'},
-  {name:'USA',flag:'🇺🇸'},{name:'Bosnia',flag:'🇧🇦'},
-  {name:'Belgium',flag:'🇧🇪'},{name:'S. Korea',flag:'🇰🇷'},
-  {name:'Colombia',flag:'🇨🇴'},{name:'Croatia',flag:'🇭🇷'},
-  {name:'Canada',flag:'🇨🇦'},{name:'Ivory Coast',flag:'🇨🇮'},
-  {name:'Brazil',flag:'🇧🇷'},{name:'Japan',flag:'🇯🇵'},
-  {name:'England',flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},{name:'Senegal',flag:'🇸🇳'},
-  {name:'Argentina',flag:'🇦🇷'},{name:'Ecuador',flag:'🇪🇨'},
-  {name:'Portugal',flag:'🇵🇹'},{name:'Turkey',flag:'🇹🇷'},
-  {name:'Mexico',flag:'🇲🇽'},{name:'Sweden',flag:'🇸🇪'},
-  {name:'Australia',flag:'🇦🇺'},{name:'Norway',flag:'🇳🇴'},
-  {name:'Switzerland',flag:'🇨🇭'},{name:'Algeria',flag:'🇩🇿'},
-  {name:'Uruguay',flag:'🇺🇾'},{name:'Iran',flag:'🇮🇷'},
+  {name:'Germany',flag:'de'},{name:'Scotland',flag:'gb-sct'},
+  {name:'France',flag:'fr'},{name:'Egypt',flag:'eg'},
+  {name:'Netherlands',flag:'nl'},{name:'Morocco',flag:'ma'},
+  {name:'Spain',flag:'es'},{name:'Austria',flag:'at'},
+  {name:'USA',flag:'us'},{name:'Bosnia',flag:'ba'},
+  {name:'Belgium',flag:'be'},{name:'S. Korea',flag:'kr'},
+  {name:'Colombia',flag:'co'},{name:'Croatia',flag:'hr'},
+  {name:'Canada',flag:'ca'},{name:'Ivory Coast',flag:'ci'},
+  {name:'Brazil',flag:'br'},{name:'Japan',flag:'jp'},
+  {name:'England',flag:'gb-eng'},{name:'Senegal',flag:'sn'},
+  {name:'Argentina',flag:'ar'},{name:'Ecuador',flag:'ec'},
+  {name:'Portugal',flag:'pt'},{name:'Turkey',flag:'tr'},
+  {name:'Mexico',flag:'mx'},{name:'Sweden',flag:'se'},
+  {name:'Australia',flag:'au'},{name:'Norway',flag:'no'},
+  {name:'Switzerland',flag:'ch'},{name:'Algeria',flag:'dz'},
+  {name:'Uruguay',flag:'uy'},{name:'Iran',flag:'ir'},
 ];
 
 /* Flag lookup by name */

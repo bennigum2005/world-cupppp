@@ -31,6 +31,15 @@ const DEMO = [
 ];
 const API = '/api';
 
+/* Resolve a usable flag code: prefer a valid flags.js code, else look up by team name.
+   Guards against old data that stored emoji flags instead of ISO codes. */
+const DEMO_CODE = {};
+DEMO.forEach(d => { DEMO_CODE[d.n] = d.f; });
+function flagCode(name, val) {
+  if (val && typeof FLAG_DATA !== 'undefined' && FLAG_DATA[val]) return val;
+  return DEMO_CODE[name] || val;
+}
+
 /* ── State ── */
 let user = null;
 let adminPass = sessionStorage.getItem('adminPass') || null;
@@ -514,7 +523,7 @@ function logout(){sessionStorage.removeItem('wcUser');window.location.href='/log
   teams=DEMO.slice();locked=false;tournamentStarted=false;activeRound='r32';
   initMatches(); propagateResults(); render();
   const [st,res]=await Promise.all([api('/bracket-state'),api('/results')]);
-  if(st&&!st.error){locked=!!st.locked;tournamentStarted=!!st.tournamentStarted;activeRound=st.activeRound||'r32';if(st.teams&&st.teams.length===32)teams=st.teams.map(t=>({n:t.name||t.n,f:t.flag||t.f}));}
+  if(st&&!st.error){locked=!!st.locked;tournamentStarted=!!st.tournamentStarted;activeRound=st.activeRound||'r32';if(st.teams&&st.teams.length===32)teams=st.teams.map(t=>({n:t.name||t.n,f:flagCode(t.name||t.n,t.flag||t.f)}));}
   if(res&&!res.error)results=res;
   const sel=document.getElementById('round-selector');if(sel)sel.value=activeRound;
   const fresh=await fetch(`${API}/entries/${encodeURIComponent(user.email)}`).then(r=>r.ok?r.json():null).catch(()=>null);
