@@ -507,7 +507,7 @@ function logout(){sessionStorage.removeItem('wcUser');window.location.href='/';}
 (async function init() {
   let sessionUser=null;
   try{sessionUser=JSON.parse(sessionStorage.getItem('wcUser'));}catch{}
-  if(!sessionUser){window.location.href='/login';return;}
+  if(!sessionUser){window.location.href='/';return;}
   user=sessionUser;
   document.getElementById('logout-btn').style.display='block';
   if(user.isAdmin){if(adminPass){document.getElementById('abar').classList.add('on');loadSyncStatus();}document.getElementById('tab-entries').style.display='';}
