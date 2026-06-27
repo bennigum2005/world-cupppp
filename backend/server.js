@@ -178,6 +178,8 @@ function readDB() {
   if (!data.bracketState.teams || data.bracketState.teams.length < 32) data.bracketState.teams = DEMO_TEAMS;
   if (!data.results)  data.results = {};
   if (data.bracketState.tournamentStarted === undefined) data.bracketState.tournamentStarted = false;
+  /* back-fill: entries locked before lockedRound existed are treated as locked for round 1 */
+  (data.entries || []).forEach(e => { if (e.locked && !e.lockedRound) e.lockedRound = 'r32'; });
   return data;
 }
 function writeDB(data) { fs.writeFileSync(DB, JSON.stringify(data, null, 2)); }
@@ -461,8 +463,9 @@ app.put('/api/entries/:email/lock', (req, res) => {
   const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
   if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
   if (db.bracketState.tournamentStarted) return res.status(403).json({ error: 'Tournament already started.' });
-  db.entries[idx].locked   = true;
-  db.entries[idx].lockedAt = new Date().toISOString();
+  db.entries[idx].locked      = true;
+  db.entries[idx].lockedRound = req.body.round || db.entries[idx].lockedRound || 'r32';
+  db.entries[idx].lockedAt    = new Date().toISOString();
   writeDB(db); res.json({ ok: true });
 });
 
