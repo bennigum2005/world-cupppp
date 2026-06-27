@@ -378,7 +378,7 @@ setTimeout(syncResults, 10000);
    AUTH ROUTES
 ══════════════════════════════════════ */
 app.post('/api/auth/register', async (req, res) => {
-  const { name, email, phone, password } = req.body;
+  const { name, email, phone, password, newsletter } = req.body;
   if (!name || !email || !phone || !password)
     return res.status(400).json({ error: 'All fields are required.' });
   if (password.length < 6)
@@ -394,7 +394,8 @@ app.post('/api/auth/register', async (req, res) => {
 
   const passwordHash = await bcrypt.hash(password, 10);
   const entry = { name, email: email.toLowerCase(), phone, passwordHash,
-                  picks: {}, champion: null, locked: false, joined: new Date().toISOString() };
+                  picks: {}, champion: null, locked: false, joined: new Date().toISOString(),
+                  newsletter: !!newsletter, newsletterAt: newsletter ? new Date().toISOString() : null };
   db.entries.push(entry);
   writeDB(db);
   const safe = safeUser(entry);

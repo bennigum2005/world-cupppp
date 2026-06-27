@@ -92,6 +92,10 @@
           <input type="checkbox" id="s-terms" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto;cursor:pointer;"/>
           <span>Ég samþykki <a href="/skilmalar" target="_blank" style="color:#ffd24a;text-decoration:underline;">þátttökuskilmála</a> HM leiks Jóa Útherja.</span>
         </label>
+        <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;color:#cfd2da;margin:2px 0 2px;cursor:pointer;line-height:1.5;">
+          <input type="checkbox" id="s-news" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto;cursor:pointer;"/>
+          <span>Ég samþykki skráningu á póstlista og að fá fréttir og tilboð. <span style="color:#8b8f99;">(valfrjálst)</span></span>
+        </label>
         <div class="err" id="s-err"></div>
         <div class="ok"  id="s-ok"></div>
         <button class="submit" id="s-btn" onclick="signup()">Create account →</button>
@@ -154,7 +158,8 @@ async function signup(){
   if(pass!==confirm){err.textContent='Passwords do not match.';return;}
   if(!document.getElementById('s-terms').checked){err.textContent='Þú þarft að samþykkja þátttökuskilmálana.';return;}
   btn.disabled=true;btn.textContent='Creating account…';
-  const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,phone,password:pass})}).then(r=>r.json()).catch(()=>null);
+  const newsletter=document.getElementById('s-news').checked;
+  const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,phone,password:pass,newsletter})}).then(r=>r.json()).catch(()=>null);
   btn.disabled=false;btn.textContent='Create account →';
   if(!r||r.error){err.textContent=r?.error||'Could not create account.';return;}
   ok.textContent='Account created! Logging you in…';
