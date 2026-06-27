@@ -586,6 +586,7 @@ app.get('/api/reset-bracket', (req, res) => {
 
 /* ── serve pages ── */
 app.get('/login',   (req, res) => res.sendFile(path.join(FRONTEND, 'login.html')));
+app.get('/skilmalar',(req, res) => res.sendFile(path.join(FRONTEND, 'skilmalar.html')));
 app.get('/bracket', (req, res) => res.sendFile(path.join(FRONTEND, 'index.html')));
 app.get('/',        (req, res) => res.sendFile(path.join(FRONTEND, 'landing.html')));
 app.get('*',        (req, res) => res.sendFile(path.join(FRONTEND, 'index.html')));

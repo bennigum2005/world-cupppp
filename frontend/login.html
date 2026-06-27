@@ -88,6 +88,10 @@
         <div class="field"><label>Confirm password</label>
           <div class="pw-wrap"><input type="password" id="s-confirm" placeholder="Repeat password" onkeydown="if(event.key==='Enter')signup()"/><button class="pw-eye" onclick="togglePw('s-confirm',this)" type="button">👁</button></div>
         </div>
+        <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;color:#cfd2da;margin:6px 0 2px;cursor:pointer;line-height:1.5;">
+          <input type="checkbox" id="s-terms" style="margin-top:3px;width:16px;height:16px;flex:0 0 auto;cursor:pointer;"/>
+          <span>Ég samþykki <a href="/skilmalar" target="_blank" style="color:#ffd24a;text-decoration:underline;">þátttökuskilmála</a> HM leiks Jóa Útherja.</span>
+        </label>
         <div class="err" id="s-err"></div>
         <div class="ok"  id="s-ok"></div>
         <button class="submit" id="s-btn" onclick="signup()">Create account →</button>
@@ -148,6 +152,7 @@ async function signup(){
   if(!phone){err.textContent='Please enter your phone number.';return;}
   if(pass.length<6){err.textContent='Password must be at least 6 characters.';return;}
   if(pass!==confirm){err.textContent='Passwords do not match.';return;}
+  if(!document.getElementById('s-terms').checked){err.textContent='Þú þarft að samþykkja þátttökuskilmálana.';return;}
   btn.disabled=true;btn.textContent='Creating account…';
   const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,phone,password:pass})}).then(r=>r.json()).catch(()=>null);
   btn.disabled=false;btn.textContent='Create account →';
