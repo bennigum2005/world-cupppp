@@ -511,6 +511,9 @@ async function adminResetMyPicks(){if(!user)return;const r=await api(`/admin/ent
 async function loadEntries(){if(!adminPass)return;const d=await api('/entries');if(Array.isArray(d))entries=d;}
 async function loadSyncStatus(){const r=await api('/admin/sync-status');const st=document.getElementById('sync-status');if(r&&st)st.textContent=`Last sync: ${r.lastSync?new Date(r.lastSync).toLocaleTimeString():'aldrei'}`;}
 
+/* Show how many unique browsers opened the site in the last 24h */
+async function loadStats(){const r=await api('/admin/stats');const el=document.getElementById('visit-stat');if(r&&el&&r.uniqueVisitors24h!=null)el.textContent=`👁 ${r.uniqueVisitors24h} gestir / 24 klst`;}
+
 /* Download a full backup file (users, picks, results) to your computer */
 async function downloadBackup(){
   if(!adminPass){alert('Admin only.');return;}
@@ -551,7 +554,7 @@ function logout(){sessionStorage.removeItem('wcUser');window.location.href='/log
   if(!sessionUser){window.location.href='/login';return;}
   user=sessionUser;
   document.getElementById('logout-btn').style.display='block';
-  if(user.isAdmin){if(adminPass){document.getElementById('abar').classList.add('on');loadSyncStatus();}document.getElementById('tab-entries').style.display='';}
+  if(user.isAdmin){if(adminPass){document.getElementById('abar').classList.add('on');loadSyncStatus();loadStats();}document.getElementById('tab-entries').style.display='';}
   teams=DEMO.slice();locked=false;tournamentStarted=false;activeRound='r32';
   initMatches(); propagateResults(); render();
   const [st,res]=await Promise.all([api('/bracket-state'),api('/results')]);

@@ -62,6 +62,36 @@ app.get('/__leave', (req, res) => {
   res.send('Bypass cleared.');
 });
 
+/* ══════════════════════════════════════
+   VISITOR COUNTER (unique browsers in last 24h)
+   Stored in its own file so it never touches user data.
+══════════════════════════════════════ */
+const VISITS_FILE = path.join(DATA_DIR, 'visits.json');
+let visitBuffer = [];
+function readVisits(){ try { return JSON.parse(fs.readFileSync(VISITS_FILE, 'utf8')); } catch { return []; } }
+function flushVisits(){
+  if (!visitBuffer.length) return;
+  const cutoff = Date.now() - 48 * 3600 * 1000;
+  const all = readVisits().concat(visitBuffer).filter(v => v.ts >= cutoff);
+  try { fs.writeFileSync(VISITS_FILE, JSON.stringify(all)); visitBuffer = []; } catch (e) {}
+}
+setInterval(flushVisits, 60 * 1000);
+
+/* Count a "site open": an HTML page load (not assets or API calls) */
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api') &&
+      (req.headers.accept || '').includes('text/html')) {
+    const m = (req.headers.cookie || '').match(/wc_vid=([^;]+)/);
+    let vid = m && m[1];
+    if (!vid) {
+      vid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      res.setHeader('Set-Cookie', `wc_vid=${vid}; Path=/; Max-Age=31536000; SameSite=Lax`);
+    }
+    visitBuffer.push({ id: vid, ts: Date.now() });
+  }
+  next();
+});
+
 /* The gate: until launch, everyone without the cookie gets the countdown.
    Static assets (images/css/js/fonts) must pass through so the countdown
    page can actually load its own background image. */
@@ -467,6 +497,17 @@ app.get('/api/admin/sync-status', (req, res) => {
 app.post('/api/admin/verify', (req, res) => {
   if (req.body.pass === ADMIN_PASS) res.json({ ok: true });
   else res.status(401).json({ error: 'Wrong password' });
+});
+
+/* Visitor stats: unique browsers that opened the site in the last 24h */
+app.get('/api/admin/stats', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const dayAgo = Date.now() - 24 * 3600 * 1000;
+  const recent = readVisits().concat(visitBuffer).filter(v => v.ts >= dayAgo);
+  res.json({
+    uniqueVisitors24h: new Set(recent.map(v => v.id)).size,
+    totalOpens24h: recent.length
+  });
 });
 
 /* Download a full backup of the database (users, picks, results) as a file */
