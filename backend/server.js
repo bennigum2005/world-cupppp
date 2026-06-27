@@ -499,6 +499,24 @@ app.post('/api/admin/verify', (req, res) => {
   else res.status(401).json({ error: 'Wrong password' });
 });
 
+/* Storage diagnostic — open in your (bypassed) browser:
+   /api/__diag?key=YOUR_ADMIN_PASS   → shows if persistence is actually on */
+app.get('/api/__diag', (req, res) => {
+  if (req.query.key !== ADMIN_PASS) return res.status(404).send('Not found');
+  let dbExists = false, entryCount = 0, writable = false;
+  try { dbExists = fs.existsSync(DB); } catch (e) {}
+  try { entryCount = (readDB().entries || []).length; } catch (e) {}
+  try { fs.accessSync(DATA_DIR, fs.constants.W_OK); writable = true; } catch (e) {}
+  res.json({
+    persistenceConfigured: !!process.env.DATA_DIR,   // true ONLY if DATA_DIR variable is set
+    DATA_DIR_value: DATA_DIR,
+    dbPath: DB,
+    dbFileExists: dbExists,
+    dataDirWritable: writable,
+    entryCount: entryCount
+  });
+});
+
 /* Visitor stats: unique browsers that opened the site in the last 24h */
 app.get('/api/admin/stats', (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
