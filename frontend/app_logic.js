@@ -510,6 +510,38 @@ async function adminUnlockEntry(email){if(!confirm(`Unlock picks for ${email}?`)
 async function adminResetMyPicks(){if(!user)return;const r=await api(`/admin/entries/${encodeURIComponent(user.email)}/reset`,{method:'PUT'});if(r?.ok){picks={};user.locked=false;sessionStorage.setItem('wcUser',JSON.stringify(user));render();}}
 async function loadEntries(){if(!adminPass)return;const d=await api('/entries');if(Array.isArray(d))entries=d;}
 async function loadSyncStatus(){const r=await api('/admin/sync-status');const st=document.getElementById('sync-status');if(r&&st)st.textContent=`Last sync: ${r.lastSync?new Date(r.lastSync).toLocaleTimeString():'aldrei'}`;}
+
+/* Download a full backup file (users, picks, results) to your computer */
+async function downloadBackup(){
+  if(!adminPass){alert('Admin only.');return;}
+  try{
+    const r=await fetch(`${API}/admin/backup`,{headers:{'x-admin-pass':adminPass}});
+    if(!r.ok){alert('Backup failed.');return;}
+    const blob=await r.blob();
+    const stamp=new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=`worldcup-backup-${stamp}.json`;
+    document.body.appendChild(a);a.click();a.remove();
+    URL.revokeObjectURL(url);
+  }catch(e){alert('Backup failed: '+e.message);}
+}
+
+/* Restore everything from a backup file you saved earlier */
+function restoreBackup(){
+  if(!adminPass){alert('Admin only.');return;}
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='application/json,.json';
+  inp.onchange=async()=>{
+    const file=inp.files&&inp.files[0];if(!file)return;
+    if(!confirm('This REPLACES all current users & picks with the backup. Continue?'))return;
+    let data;try{data=JSON.parse(await file.text());}catch{alert('That file is not valid JSON.');return;}
+    const r=await api('/admin/restore',{method:'POST',body:JSON.stringify(data)});
+    if(r&&r.ok){alert(`Restored ${r.entries} participant(s). Reloading…`);location.reload();}
+    else alert('Restore failed: '+((r&&r.error)||'unknown error'));
+  };
+  inp.click();
+}
 function logout(){sessionStorage.removeItem('wcUser');window.location.href='/login';}
 
 /* ══ BOOT ══ */

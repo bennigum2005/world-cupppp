@@ -9,7 +9,12 @@ const app      = express();
 const PORT     = process.env.PORT || 3000;
 const ROOT     = path.resolve(__dirname, '..');
 const FRONTEND = path.join(ROOT, 'frontend');
-const DB       = path.join(ROOT, 'db.json');
+/* DATA_DIR lets db.json live on a persistent volume (e.g. a Railway volume
+   mounted at /data) so user data survives redeploys/restarts. Falls back to
+   the project folder for local dev. */
+const DATA_DIR = process.env.DATA_DIR || ROOT;
+try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
+const DB       = path.join(DATA_DIR, 'db.json');
 const ADMIN_PASS     = process.env.ADMIN_PASS     || 'worldcup2026';
 const ADMIN_EMAIL    = process.env.ADMIN_EMAIL     || '';
 const BDL_KEY        = process.env.BALLDONTLIE_KEY || '7613b730-f1ee-480b-8584-063f8ad5fc57';
@@ -462,6 +467,29 @@ app.get('/api/admin/sync-status', (req, res) => {
 app.post('/api/admin/verify', (req, res) => {
   if (req.body.pass === ADMIN_PASS) res.json({ ok: true });
   else res.status(401).json({ error: 'Wrong password' });
+});
+
+/* Download a full backup of the database (users, picks, results) as a file */
+app.get('/api/admin/backup', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const db = readDB();
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  res.setHeader('Content-Disposition', `attachment; filename="worldcup-backup-${stamp}.json"`);
+  res.setHeader('Content-Type', 'application/json');
+  res.send(JSON.stringify(db, null, 2));
+});
+
+/* Restore the database from an uploaded backup file (replaces everything) */
+app.post('/api/admin/restore', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const data = req.body;
+  if (!data || !Array.isArray(data.entries) || !data.bracketState) {
+    return res.status(400).json({ error: 'That does not look like a valid backup file.' });
+  }
+  /* keep a safety copy of what we are about to overwrite */
+  try { fs.copyFileSync(DB, DB + '.prev'); } catch (e) {}
+  writeDB(data);
+  res.json({ ok: true, entries: data.entries.length });
 });
 
 app.put('/api/admin/entries/:email/reset', (req, res) => {
