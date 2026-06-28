@@ -417,14 +417,15 @@ setTimeout(syncResults, 10000);
    AUTH ROUTES
 ══════════════════════════════════════ */
 app.post('/api/auth/register', async (req, res) => {
-  const { name, email, phone, password, newsletter } = req.body;
+  const { name, phone, password, newsletter } = req.body;
+  const email = (req.body.email || '').trim().toLowerCase();
   if (!name || !email || !phone || !password)
     return res.status(400).json({ error: 'All fields are required.' });
   if (password.length < 6)
     return res.status(400).json({ error: 'Password must be at least 6 characters.' });
 
   const db = readDB();
-  const emailTaken = db.entries.find(e => e.email.toLowerCase() === email.toLowerCase());
+  const emailTaken = db.entries.find(e => (e.email || '').trim().toLowerCase() === email);
   if (emailTaken) return res.status(409).json({ error: 'An account with this email already exists.' });
 
   const normalisePhone = p => p.replace(/[\s\-()+.]/g, '');
@@ -432,7 +433,7 @@ app.post('/api/auth/register', async (req, res) => {
   if (phoneTaken) return res.status(409).json({ error: 'An account with this phone number already exists.' });
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const entry = { name, email: email.toLowerCase(), phone, passwordHash,
+  const entry = { name, email, phone, passwordHash,
                   picks: {}, champion: null, locked: false, joined: new Date().toISOString(),
                   newsletter: !!newsletter, newsletterAt: newsletter ? new Date().toISOString() : null };
   db.entries.push(entry);
@@ -443,10 +444,11 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { password } = req.body;
+  const email = (req.body.email || '').trim().toLowerCase();
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });
   const db    = readDB();
-  const entry = db.entries.find(e => e.email === email.toLowerCase());
+  const entry = db.entries.find(e => (e.email || '').trim().toLowerCase() === email);
   if (!entry) return res.status(401).json({ error: 'No account found with that email.' });
   if (!entry.passwordHash) return res.status(401).json({ error: 'Please contact admin to reset your account.' });
   const match = await bcrypt.compare(password, entry.passwordHash);
