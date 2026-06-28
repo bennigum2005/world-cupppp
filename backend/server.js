@@ -145,23 +145,24 @@ const ROUND_MAP = {
   'Final':          'final',
 };
 
+/* Real 2026 World Cup Round of 32 bracket (correct slot order) */
 const DEMO_TEAMS = [
-  {name:'Germany',flag:'de'},{name:'Scotland',flag:'gb-sct'},
-  {name:'France',flag:'fr'},{name:'Egypt',flag:'eg'},
-  {name:'Netherlands',flag:'nl'},{name:'Morocco',flag:'ma'},
-  {name:'Spain',flag:'es'},{name:'Austria',flag:'at'},
-  {name:'USA',flag:'us'},{name:'Bosnia',flag:'ba'},
-  {name:'Belgium',flag:'be'},{name:'S. Korea',flag:'kr'},
-  {name:'Colombia',flag:'co'},{name:'Croatia',flag:'hr'},
-  {name:'Canada',flag:'ca'},{name:'Ivory Coast',flag:'ci'},
-  {name:'Brazil',flag:'br'},{name:'Japan',flag:'jp'},
-  {name:'England',flag:'gb-eng'},{name:'Senegal',flag:'sn'},
-  {name:'Argentina',flag:'ar'},{name:'Ecuador',flag:'ec'},
-  {name:'Portugal',flag:'pt'},{name:'Turkey',flag:'tr'},
-  {name:'Mexico',flag:'mx'},{name:'Sweden',flag:'se'},
-  {name:'Australia',flag:'au'},{name:'Norway',flag:'no'},
-  {name:'Switzerland',flag:'ch'},{name:'Algeria',flag:'dz'},
-  {name:'Uruguay',flag:'uy'},{name:'Iran',flag:'ir'},
+  {name:'Germany',flag:'de'},      {name:'Paraguay',flag:'py'},
+  {name:'France',flag:'fr'},       {name:'Sweden',flag:'se'},
+  {name:'Canada',flag:'ca'},       {name:'South Africa',flag:'za'},
+  {name:'Netherlands',flag:'nl'},  {name:'Morocco',flag:'ma'},
+  {name:'Portugal',flag:'pt'},     {name:'Ghana',flag:'gh'},
+  {name:'Spain',flag:'es'},        {name:'Austria',flag:'at'},
+  {name:'USA',flag:'us'},          {name:'Bosnia',flag:'ba'},
+  {name:'Belgium',flag:'be'},      {name:'S. Korea',flag:'kr'},
+  {name:'Brazil',flag:'br'},       {name:'Japan',flag:'jp'},
+  {name:'Ivory Coast',flag:'ci'},  {name:'Norway',flag:'no'},
+  {name:'Mexico',flag:'mx'},       {name:'Ecuador',flag:'ec'},
+  {name:'England',flag:'gb-eng'},  {name:'Senegal',flag:'sn'},
+  {name:'Argentina',flag:'ar'},    {name:'Cape Verde',flag:'cv'},
+  {name:'Egypt',flag:'eg'},        {name:'Australia',flag:'au'},
+  {name:'Switzerland',flag:'ch'},  {name:'Iran',flag:'ir'},
+  {name:'Colombia',flag:'co'},     {name:'Croatia',flag:'hr'},
 ];
 
 /* Flag lookup by name */
@@ -183,6 +184,22 @@ function readDB() {
   return data;
 }
 function writeDB(data) { fs.writeFileSync(DB, JSON.stringify(data, null, 2)); }
+
+/* Force the stored bracket to the official R32 teams once, on deploy.
+   Bump TEAMS_VERSION to push a new lineup. Accounts & picks are untouched. */
+const TEAMS_VERSION = 2;
+(function ensureOfficialTeams(){
+  try {
+    const db = readDB();
+    if (db.bracketState.teamsVersion !== TEAMS_VERSION) {
+      db.bracketState.teams = DEMO_TEAMS;
+      db.bracketState.teamsVersion = TEAMS_VERSION;
+      writeDB(db);
+      console.log('⚽ Bracket set to official 2026 R32 (teams v' + TEAMS_VERSION + ')');
+    }
+  } catch (e) { console.error('Team migration failed:', e.message); }
+})();
+
 function isAdmin(req)  { return req.headers['x-admin-pass'] === ADMIN_PASS; }
 function isAdminAccount(email) { return ADMIN_EMAIL && ADMIN_EMAIL.toLowerCase() === email.toLowerCase(); }
 function safeUser(e)   { const { passwordHash, ...rest } = e; return rest; }
