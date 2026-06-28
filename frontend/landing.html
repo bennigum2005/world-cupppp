@@ -19,14 +19,12 @@
       width: 100vw;
       height: 100vh;
       overflow: hidden;
+      /* PC background */
+      background: #0a0e14 url('hero.jpg') center/cover no-repeat;
     }
-
-    .hero-img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+    /* Phone background — the portrait poster */
+    @media (max-width: 700px) {
+      .hero { background-image: url('countdown_bg.jpg'); }
     }
 
     .hero-btn-wrap {
@@ -83,10 +81,6 @@
 </head>
 <body>
   <div class="hero">
-    <picture>
-      <source media="(max-width: 600px)" srcset="hero_mobile.jpg">
-      <img class="hero-img" src="hero.jpg" alt="HM Leikur" fetchpriority="high">
-    </picture>
     <div class="hero-btn-wrap">
       <button class="btn-start" onclick="window.location.href='/login'">HEFJA LEIK</button>
     </div>
