@@ -253,6 +253,20 @@ const PICKS_FIX2 = 1;
   } catch (e) { console.error('Picks fix2 failed:', e.message); }
 })();
 
+/* One-time: close all brackets now — nobody can change picks.
+   Runs once; admin can still "Reopen picks" later if needed. */
+const LOCK_NOW_VERSION = 1;
+(function lockAllPicksNow(){
+  try {
+    const db = readDB();
+    if (db.lockNowVersion === LOCK_NOW_VERSION) return;
+    db.bracketState.tournamentStarted = true;
+    db.lockNowVersion = LOCK_NOW_VERSION;
+    writeDB(db);
+    console.log('🔒 All picks locked (closed for everyone)');
+  } catch (e) { console.error('Lock-now failed:', e.message); }
+})();
+
 function isAdmin(req)  { return req.headers['x-admin-pass'] === ADMIN_PASS; }
 function isAdminAccount(email) { return ADMIN_EMAIL && ADMIN_EMAIL.toLowerCase() === email.toLowerCase(); }
 function safeUser(e)   { const { passwordHash, ...rest } = e; return rest; }
