@@ -151,7 +151,7 @@ const DEMO_TEAMS = [
   {name:'France',flag:'fr'},       {name:'Sweden',flag:'se'},
   {name:'Canada',flag:'ca'},       {name:'South Africa',flag:'za'},
   {name:'Netherlands',flag:'nl'},  {name:'Morocco',flag:'ma'},
-  {name:'Portugal',flag:'pt'},     {name:'Ghana',flag:'gh'},
+  {name:'Portugal',flag:'pt'},     {name:'Croatia',flag:'hr'},
   {name:'Spain',flag:'es'},        {name:'Austria',flag:'at'},
   {name:'USA',flag:'us'},          {name:'Bosnia',flag:'ba'},
   {name:'Belgium',flag:'be'},      {name:'S. Korea',flag:'kr'},
@@ -162,7 +162,7 @@ const DEMO_TEAMS = [
   {name:'Argentina',flag:'ar'},    {name:'Cape Verde',flag:'cv'},
   {name:'Egypt',flag:'eg'},        {name:'Australia',flag:'au'},
   {name:'Switzerland',flag:'ch'},  {name:'Iran',flag:'ir'},
-  {name:'Colombia',flag:'co'},     {name:'Croatia',flag:'hr'},
+  {name:'Colombia',flag:'co'},     {name:'Ghana',flag:'gh'},
 ];
 
 /* Flag lookup by name */
@@ -187,7 +187,7 @@ function writeDB(data) { fs.writeFileSync(DB, JSON.stringify(data, null, 2)); }
 
 /* Force the stored bracket to the official R32 teams once, on deploy.
    Bump TEAMS_VERSION to push a new lineup. Accounts & picks are untouched. */
-const TEAMS_VERSION = 2;
+const TEAMS_VERSION = 3;
 (function ensureOfficialTeams(){
   try {
     const db = readDB();
@@ -198,6 +198,28 @@ const TEAMS_VERSION = 2;
       console.log('⚽ Bracket set to official 2026 R32 (teams v' + TEAMS_VERSION + ')');
     }
   } catch (e) { console.error('Team migration failed:', e.message); }
+})();
+
+/* One-time: Ghana and Croatia were swapped — flip them in everyone's picks. */
+const PICKS_FIX_VERSION = 1;
+(function swapGhanaCroatiaInPicks(){
+  try {
+    const db = readDB();
+    if (db.picksFixVersion === PICKS_FIX_VERSION) return;
+    const swap = (t) => {
+      if (!t || !t.n) return t;
+      if (t.n === 'Ghana')   return { n: 'Croatia', f: 'hr' };
+      if (t.n === 'Croatia') return { n: 'Ghana',   f: 'gh' };
+      return t;
+    };
+    (db.entries || []).forEach(e => {
+      if (e.picks) for (const k in e.picks) e.picks[k] = swap(e.picks[k]);
+      if (e.champion) e.champion = swap(e.champion);
+    });
+    db.picksFixVersion = PICKS_FIX_VERSION;
+    writeDB(db);
+    console.log('✓ Swapped Ghana<->Croatia in all picks');
+  } catch (e) { console.error('Picks fix failed:', e.message); }
 })();
 
 function isAdmin(req)  { return req.headers['x-admin-pass'] === ADMIN_PASS; }

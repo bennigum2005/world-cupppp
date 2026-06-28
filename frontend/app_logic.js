@@ -17,7 +17,7 @@ const DEMO = [
   {n:'France',f:'fr'},      {n:'Sweden',f:'se'},
   {n:'Canada',f:'ca'},      {n:'South Africa',f:'za'},
   {n:'Netherlands',f:'nl'}, {n:'Morocco',f:'ma'},
-  {n:'Portugal',f:'pt'},    {n:'Ghana',f:'gh'},
+  {n:'Portugal',f:'pt'},    {n:'Croatia',f:'hr'},
   {n:'Spain',f:'es'},       {n:'Austria',f:'at'},
   {n:'USA',f:'us'},         {n:'Bosnia',f:'ba'},
   {n:'Belgium',f:'be'},     {n:'S. Korea',f:'kr'},
@@ -28,7 +28,7 @@ const DEMO = [
   {n:'Argentina',f:'ar'},   {n:'Cape Verde',f:'cv'},
   {n:'Egypt',f:'eg'},       {n:'Australia',f:'au'},
   {n:'Switzerland',f:'ch'}, {n:'Iran',f:'ir'},
-  {n:'Colombia',f:'co'},    {n:'Croatia',f:'hr'},
+  {n:'Colombia',f:'co'},    {n:'Ghana',f:'gh'},
 ];
 const API = '/api';
 
