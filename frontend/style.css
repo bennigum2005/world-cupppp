@@ -218,6 +218,8 @@ body {
   .rp-grid{grid-template-columns:1fr;}
   .rp-prizes-card{grid-column:auto;}
   .rp-prizes{grid-template-columns:repeat(2,1fr);}
+  /* hide team names on phone — flags only (names are too wide) */
+  .vs-names{display:none;}
 }
 
 
