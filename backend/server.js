@@ -154,14 +154,14 @@ const DEMO_TEAMS = [
   {name:'Portugal',flag:'pt'},     {name:'Croatia',flag:'hr'},
   {name:'Spain',flag:'es'},        {name:'Austria',flag:'at'},
   {name:'USA',flag:'us'},          {name:'Bosnia',flag:'ba'},
-  {name:'Belgium',flag:'be'},      {name:'S. Korea',flag:'kr'},
+  {name:'Belgium',flag:'be'},      {name:'Senegal',flag:'sn'},
   {name:'Brazil',flag:'br'},       {name:'Japan',flag:'jp'},
   {name:'Ivory Coast',flag:'ci'},  {name:'Norway',flag:'no'},
   {name:'Mexico',flag:'mx'},       {name:'Ecuador',flag:'ec'},
-  {name:'England',flag:'gb-eng'},  {name:'Senegal',flag:'sn'},
+  {name:'England',flag:'gb-eng'},  {name:'DR Congo',flag:'cd'},
   {name:'Argentina',flag:'ar'},    {name:'Cape Verde',flag:'cv'},
   {name:'Egypt',flag:'eg'},        {name:'Australia',flag:'au'},
-  {name:'Switzerland',flag:'ch'},  {name:'Iran',flag:'ir'},
+  {name:'Switzerland',flag:'ch'},  {name:'Algeria',flag:'dz'},
   {name:'Colombia',flag:'co'},     {name:'Ghana',flag:'gh'},
 ];
 
@@ -187,7 +187,7 @@ function writeDB(data) { fs.writeFileSync(DB, JSON.stringify(data, null, 2)); }
 
 /* Force the stored bracket to the official R32 teams once, on deploy.
    Bump TEAMS_VERSION to push a new lineup. Accounts & picks are untouched. */
-const TEAMS_VERSION = 3;
+const TEAMS_VERSION = 4;
 (function ensureOfficialTeams(){
   try {
     const db = readDB();
@@ -220,6 +220,37 @@ const PICKS_FIX_VERSION = 1;
     writeDB(db);
     console.log('✓ Swapped Ghana<->Croatia in all picks');
   } catch (e) { console.error('Picks fix failed:', e.message); }
+})();
+
+/* One-time: bracket corrected (Belgium–Senegal, England–DR Congo, Switzerland–Algeria).
+   Remove picks for teams no longer in those matches, and any pick for eliminated
+   teams (S. Korea, Iran), so players re-pick the correct matchups. */
+const PICKS_FIX2 = 1;
+(function clearInvalidPicks(){
+  try {
+    const db = readDB();
+    if (db.picksFix2 === PICKS_FIX2) return;
+    const removed = ['S. Korea', 'Iran'];
+    const validInMatch = {
+      'l_r16_7': ['Belgium', 'Senegal'],
+      'r_r16_3': ['England', 'DR Congo'],
+      'r_r16_6': ['Switzerland', 'Algeria'],
+    };
+    (db.entries || []).forEach(e => {
+      if (e.picks) {
+        for (const mid in e.picks) {
+          const p = e.picks[mid];
+          if (!p || !p.n) continue;
+          if (removed.includes(p.n)) { delete e.picks[mid]; continue; }
+          if (validInMatch[mid] && !validInMatch[mid].includes(p.n)) delete e.picks[mid];
+        }
+      }
+      if (e.champion && removed.includes(e.champion.n)) e.champion = null;
+    });
+    db.picksFix2 = PICKS_FIX2;
+    writeDB(db);
+    console.log('✓ Cleared invalid picks after bracket correction');
+  } catch (e) { console.error('Picks fix2 failed:', e.message); }
 })();
 
 function isAdmin(req)  { return req.headers['x-admin-pass'] === ADMIN_PASS; }

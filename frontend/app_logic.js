@@ -20,14 +20,14 @@ const DEMO = [
   {n:'Portugal',f:'pt'},    {n:'Croatia',f:'hr'},
   {n:'Spain',f:'es'},       {n:'Austria',f:'at'},
   {n:'USA',f:'us'},         {n:'Bosnia',f:'ba'},
-  {n:'Belgium',f:'be'},     {n:'S. Korea',f:'kr'},
+  {n:'Belgium',f:'be'},     {n:'Senegal',f:'sn'},
   {n:'Brazil',f:'br'},      {n:'Japan',f:'jp'},
   {n:'Ivory Coast',f:'ci'}, {n:'Norway',f:'no'},
   {n:'Mexico',f:'mx'},      {n:'Ecuador',f:'ec'},
-  {n:'England',f:'gb-eng'}, {n:'Senegal',f:'sn'},
+  {n:'England',f:'gb-eng'}, {n:'DR Congo',f:'cd'},
   {n:'Argentina',f:'ar'},   {n:'Cape Verde',f:'cv'},
   {n:'Egypt',f:'eg'},       {n:'Australia',f:'au'},
-  {n:'Switzerland',f:'ch'}, {n:'Iran',f:'ir'},
+  {n:'Switzerland',f:'ch'}, {n:'Algeria',f:'dz'},
   {n:'Colombia',f:'co'},    {n:'Ghana',f:'gh'},
 ];
 const API = '/api';
