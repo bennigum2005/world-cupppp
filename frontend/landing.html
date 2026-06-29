@@ -35,8 +35,22 @@
       bottom: 10vh;
       bottom: 10dvh;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
       z-index: 2;
+    }
+
+    .cd { display: flex; gap: clamp(10px,3vw,22px); justify-content: center; }
+    .cd-unit { display: flex; flex-direction: column; align-items: center; min-width: clamp(48px,13vw,72px); }
+    .cd-num {
+      font-size: clamp(28px,7vw,52px); font-weight: 800; line-height: 1;
+      color: #ffd24a; font-variant-numeric: tabular-nums;
+      text-shadow: 0 2px 12px rgba(0,0,0,.9), 0 0 26px rgba(255,200,70,.4);
+    }
+    .cd-lbl {
+      margin-top: 6px; font-size: clamp(8px,2vw,11px); letter-spacing: .18em;
+      text-transform: uppercase; color: #f2e6c4; text-shadow: 0 1px 6px rgba(0,0,0,.9);
     }
 
     .btn-start {
@@ -84,8 +98,31 @@
 <body>
   <div class="hero">
     <div class="hero-btn-wrap">
-      <button class="btn-start" onclick="window.location.href='/login'">HEFJA LEIK</button>
+      <div class="cd" id="cd">
+        <div class="cd-unit"><span class="cd-num" id="cd-d">--</span><span class="cd-lbl">Dagar</span></div>
+        <div class="cd-unit"><span class="cd-num" id="cd-h">--</span><span class="cd-lbl">Klst</span></div>
+        <div class="cd-unit"><span class="cd-num" id="cd-m">--</span><span class="cd-lbl">Mín</span></div>
+        <div class="cd-unit"><span class="cd-num" id="cd-s">--</span><span class="cd-lbl">Sek</span></div>
+      </div>
+      <button class="btn-start" onclick="window.location.href='/login'">Innskráning / Hefja leik</button>
     </div>
   </div>
+
+  <script>
+    /* ▼▼ SET YOUR COUNTDOWN DATE/TIME HERE (GMT) ▼▼ */
+    var CD_TARGET = Date.parse('2026-06-28T05:00:00Z');
+    function pad(n){ return (n<10?'0':'')+n; }
+    function cdTick(){
+      var cd = document.getElementById('cd');
+      var diff = CD_TARGET - Date.now();
+      if (diff <= 0){ if(cd) cd.style.display='none'; return; }   // hide once it hits zero
+      var s = Math.floor(diff/1000);
+      document.getElementById('cd-d').textContent = Math.floor(s/86400);
+      document.getElementById('cd-h').textContent = pad(Math.floor(s%86400/3600));
+      document.getElementById('cd-m').textContent = pad(Math.floor(s%3600/60));
+      document.getElementById('cd-s').textContent = pad(s%60);
+    }
+    cdTick(); setInterval(cdTick, 1000);
+  </script>
 </body>
 </html>
