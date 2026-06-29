@@ -112,6 +112,16 @@ function isPickable(matchId) {
 }
 
 /* ══ PICKS ══ */
+/* Admin: click a flag to set/clear that team as the match winner */
+async function adminSetResult(matchId, team) {
+  if (!adminPass || !team) return;
+  const cur = results[matchId];
+  if (cur && cur.n === team.n) delete results[matchId];           // click again = clear
+  else results[matchId] = { n: team.n, f: team.f };
+  propagateResults(); render();
+  await api('/admin/set-result', { method:'POST', body: JSON.stringify({ matchId, team: results[matchId] || null }) });
+}
+
 async function pick(matchId, team) {
   if (!isPickable(matchId) || !team) return;
   picks[matchId] = team;
@@ -246,7 +256,17 @@ function makeCard(matchId) {
     card.appendChild(pr);
   }
 
-  if (pickable && t1 && t2) {
+  if (adminPass && t1 && t2) {
+    /* Admin mode: clicking a flag sets the winner (works even when locked) */
+    [f1,f2].forEach((fc,i) => {
+      const team = i===0?t1:t2;
+      fc.style.cursor = 'pointer';
+      fc.title = 'Smelltu til að velja sigurvegara (admin)';
+      fc.addEventListener('click', e => { e.stopPropagation(); adminSetResult(matchId,team); });
+      fc.addEventListener('mouseenter', () => fc.style.borderColor = 'var(--gold)');
+      fc.addEventListener('mouseleave',  () => { if(!(result&&result.n===team.n)) fc.style.borderColor=''; });
+    });
+  } else if (pickable && t1 && t2) {
     [f1,f2].forEach((fc,i) => {
       const team = i===0?t1:t2;
       fc.style.cursor = 'pointer';
@@ -310,7 +330,15 @@ function makeCentreCol() {
   cv.innerHTML=result?`<span style='display:inline-flex;align-items:center;gap:5px;'>${flagImg(result.f,20)} ${result.n}${correct?' ✓':wrong?' ✗':''}</span>`:myPick?`<span style='display:inline-flex;align-items:center;gap:5px;'>→ ${flagImg(myPick.f,20)} ${myPick.n}</span>`:'—';
   card.append(lbl,frow,trophy,cl,cv);
 
-  if(pickable&&t1&&t2) {
+  if(adminPass&&t1&&t2) {
+    [ff1,ff2].forEach((el,i)=>{
+      el.style.cursor='pointer';
+      el.title='Velja sigurvegara (admin)';
+      el.addEventListener('click',()=>adminSetResult('final',i===0?t1:t2));
+      el.addEventListener('mouseenter',()=>el.style.boxShadow='0 0 0 2px var(--gold)');
+      el.addEventListener('mouseleave',()=>{ if(!(result&&result.n===(i===0?t1:t2).n)) el.style.boxShadow=''; });
+    });
+  } else if(pickable&&t1&&t2) {
     [ff1,ff2].forEach((el,i)=>{
       el.style.cursor='pointer';
       el.addEventListener('click',()=>pick('final',i===0?t1:t2));
@@ -350,7 +378,9 @@ function makeCentreCol() {
   tcv.style.color=tpResult?(tpCorrect?'var(--green)':tpWrong?'var(--red)':'var(--gold2)'):'var(--t2)';
   tcv.innerHTML=tpResult?`<span style='display:inline-flex;align-items:center;gap:4px;'>${flagImg(tpResult.f,16)} ${tpResult.n}${tpCorrect?' ✓':tpWrong?' ✗':''}</span>`:tpPick?`<span style='display:inline-flex;align-items:center;gap:4px;'>→ ${flagImg(tpPick.f,16)} ${tpPick.n}</span>`:(tp1&&tp2?'Veldu sigurvegara':'Óþekkt');
   tpCard.append(tpLbl,trow,tcv);
-  if(tpPickable&&tp1&&tp2) {
+  if(adminPass&&tp1&&tp2) {
+    [tf1,tf2].forEach((el,i)=>{ el.style.cursor='pointer'; el.title='Velja sigurvegara (admin)'; el.addEventListener('click',()=>adminSetResult('third',i===0?tp1:tp2)); el.addEventListener('mouseenter',()=>el.style.borderColor='var(--gold)'); el.addEventListener('mouseleave',()=>el.style.borderColor=''); });
+  } else if(tpPickable&&tp1&&tp2) {
     [tf1,tf2].forEach((el,i)=>{ el.style.cursor='pointer'; el.addEventListener('click',()=>pick('third',i===0?tp1:tp2)); el.addEventListener('mouseenter',()=>el.style.borderColor='var(--gold)'); el.addEventListener('mouseleave',()=>el.style.borderColor=''); });
   }
   col.appendChild(tpCard);

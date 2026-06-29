@@ -568,6 +568,17 @@ app.put('/api/results', (req, res) => {
   writeDB(db); res.json({ ok: true });
 });
 
+/* Admin: set or clear the winner of a single match (manual override) */
+app.post('/api/admin/set-result', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const { matchId, team } = req.body;
+  if (!matchId) return res.status(400).json({ error: 'matchId required' });
+  const db = readDB();
+  if (team && team.n) db.results[matchId] = { n: team.n, f: team.f };
+  else delete db.results[matchId];
+  writeDB(db); res.json({ ok: true, results: db.results });
+});
+
 /* Manual trigger for admin */
 app.post('/api/admin/sync-results', async (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
