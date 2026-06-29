@@ -455,7 +455,7 @@ async function renderLeaderboard() {
     const e=data[i];
     if (i>0&&e.score<data[i-1].score) rank=i+1;
     const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`;
-    const isMe=user&&e.email===user.email;
+    const isMe=user&&e.name===user.name;
     const init=e.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     const scoreDisplay = e.locked ? e.score : '<span style="color:var(--t3);font-size:11px;">—</span>';
     html+=`<tr style="${isMe?'background:rgba(232,232,232,.05);':''}">

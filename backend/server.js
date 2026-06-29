@@ -525,6 +525,21 @@ app.get('/api/entries', (req, res) => {
   res.json(readDB().entries.map(safeUser));
 });
 
+/* Public leaderboard — names, points, lock status only (no emails/phones) */
+app.get('/api/leaderboard', (req, res) => {
+  const db = readDB();
+  const results = db.results || {};
+  const board = (db.entries || []).map(e => {
+    const picks = e.picks || {};
+    let score = 0;
+    for (const id in results) {
+      if (picks[id] && results[id] && picks[id].n === results[id].n) score++;
+    }
+    return { name: e.name, score, locked: !!e.locked };
+  }).sort((a, b) => b.score - a.score);
+  res.json(board);
+});
+
 app.get('/api/entries/:email', (req, res) => {
   const db    = readDB();
   const entry = db.entries.find(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
