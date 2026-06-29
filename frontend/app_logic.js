@@ -547,6 +547,21 @@ async function loadSyncStatus(){const r=await api('/admin/sync-status');const st
 /* Show how many unique browsers opened the site in the last 24h */
 async function loadStats(){const r=await api('/admin/stats');const el=document.getElementById('visit-stat');if(r&&el&&r.uniqueVisitors24h!=null)el.textContent=`👁 ${r.uniqueVisitors24h} gestir / 24 klst`;}
 
+/* Download a CSV of everyone who opted into the mailing list */
+async function downloadMailingList(){
+  if(!adminPass){alert('Admin only.');return;}
+  try{
+    const r=await fetch(`${API}/admin/mailing-list`,{headers:{'x-admin-pass':adminPass}});
+    if(!r.ok){alert('Mailing list export failed.');return;}
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download='mailing-list.csv';
+    document.body.appendChild(a);a.click();a.remove();
+    URL.revokeObjectURL(url);
+  }catch(e){alert('Export failed: '+e.message);}
+}
+
 /* Download a full backup file (users, picks, results) to your computer */
 async function downloadBackup(){
   if(!adminPass){alert('Admin only.');return;}

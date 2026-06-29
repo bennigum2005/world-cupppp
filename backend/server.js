@@ -674,6 +674,20 @@ app.get('/api/admin/backup', (req, res) => {
   res.send(JSON.stringify(db, null, 2));
 });
 
+/* Export mailing-list opt-ins as a CSV (name, email, when they opted in) */
+app.get('/api/admin/mailing-list', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const db = readDB();
+  const optedIn = (db.entries || []).filter(e => e.newsletter);
+  const esc = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+  const rows = [['Name', 'Email', 'Opted in at']]
+    .concat(optedIn.map(e => [e.name, e.email, e.newsletterAt || '']));
+  const csv = rows.map(r => r.map(esc).join(',')).join('\n');
+  res.setHeader('Content-Disposition', 'attachment; filename="mailing-list.csv"');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.send(csv);
+});
+
 /* Restore the database from an uploaded backup file (replaces everything) */
 app.post('/api/admin/restore', (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });

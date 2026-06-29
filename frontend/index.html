@@ -46,6 +46,7 @@
       <button class="btn" onclick="manualSync()" id="sync-btn">↻ Samstilla niðurstöður</button>
       <span id="sync-status" style="font-size:11px;color:var(--t2);"></span>
       <span id="visit-stat" style="font-size:11px;color:var(--t2);font-weight:700;"></span>
+      <button class="btn" onclick="downloadMailingList()" title="Download mailing-list opt-ins (CSV)">📧 Netfangalisti</button>
       <button class="btn" onclick="downloadBackup()" title="Download a backup of all users & picks">⬇ Backup</button>
       <button class="btn" onclick="restoreBackup()" title="Restore from a backup file">⬆ Restore</button>
       <button class="btn btn-d" onclick="adminResetMyPicks()" style="margin-left:auto;">Reset my picks</button>
@@ -154,6 +155,6 @@
 
 </div>
 <script src="flags.js?v=6"></script>
-<script src="app_logic.js?v=10"></script>
+<script src="app_logic.js?v=11"></script>
 </body>
 </html>
