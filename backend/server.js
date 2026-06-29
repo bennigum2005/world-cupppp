@@ -267,6 +267,20 @@ const LOCK_NOW_VERSION = 1;
   } catch (e) { console.error('Lock-now failed:', e.message); }
 })();
 
+/* One-time: give every existing entry a unique id (so duplicates can be deleted) */
+const ENTRY_ID_VERSION = 1;
+(function ensureEntryIds(){
+  try {
+    const db = readDB();
+    if (db.entryIdVersion === ENTRY_ID_VERSION) return;
+    (db.entries || []).forEach((e, i) => {
+      if (!e.id) e.id = 'e' + Date.now().toString(36) + i + Math.random().toString(36).slice(2, 6);
+    });
+    db.entryIdVersion = ENTRY_ID_VERSION;
+    writeDB(db);
+  } catch (e) { console.error('Entry-id migration failed:', e.message); }
+})();
+
 function isAdmin(req)  { return req.headers['x-admin-pass'] === ADMIN_PASS; }
 function isAdminAccount(email) { return ADMIN_EMAIL && ADMIN_EMAIL.toLowerCase() === email.toLowerCase(); }
 function safeUser(e)   { const { passwordHash, ...rest } = e; return rest; }
@@ -478,7 +492,8 @@ app.post('/api/auth/register', async (req, res) => {
   if (phoneTaken) return res.status(409).json({ error: 'An account with this phone number already exists.' });
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const entry = { name, email, phone, passwordHash,
+  const entry = { id: 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+                  name, email, phone, passwordHash,
                   picks: {}, champion: null, locked: false, joined: new Date().toISOString(),
                   newsletter: !!newsletter, newsletterAt: newsletter ? new Date().toISOString() : null };
   db.entries.push(entry);
@@ -692,6 +707,16 @@ app.put('/api/admin/entries/:email/unlock', (req, res) => {
   if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
   db.entries[idx].locked   = false;
   db.entries[idx].lockedAt = null;
+  writeDB(db); res.json({ ok: true });
+});
+
+/* Delete a participant by unique id (for removing duplicates) */
+app.delete('/api/admin/entries/:id', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const db = readDB();
+  const before = db.entries.length;
+  db.entries = db.entries.filter(e => e.id !== req.params.id);
+  if (db.entries.length === before) return res.status(404).json({ error: 'Entry not found.' });
   writeDB(db); res.json({ ok: true });
 });
 

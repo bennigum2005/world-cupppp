@@ -500,6 +500,7 @@ function renderEntries() {
     <td><div style="display:flex;gap:6px;">
       <button class="btn btn-d" style="font-size:10px;padding:3px 8px;" onclick="adminResetEntry('${esc}')">Reset</button>
       ${e.locked?`<button class="btn" style="font-size:10px;padding:3px 8px;" onclick="adminUnlockEntry('${esc}')">Unlock</button>`:''}
+      <button class="btn" style="font-size:10px;padding:3px 8px;color:#ff6b6b;border-color:#ff6b6b;" onclick="adminDeleteEntry('${e.id}','${esc}')">Delete</button>
     </div></td></tr>`;
   }
   html+=`</tbody></table></div>`;
@@ -538,6 +539,7 @@ async function manualSync(){
 }
 async function adminResetEntry(email){if(!confirm(`Reset picks for ${email}?`))return;const r=await api(`/admin/entries/${encodeURIComponent(email)}/reset`,{method:'PUT'});if(r?.ok){await loadEntries();renderEntries();}}
 async function adminUnlockEntry(email){if(!confirm(`Unlock picks for ${email}?`))return;const r=await api(`/admin/entries/${encodeURIComponent(email)}/unlock`,{method:'PUT'});if(r?.ok){await loadEntries();renderEntries();}}
+async function adminDeleteEntry(id,email){if(!confirm(`Eyða þátttakanda ${email}? Þetta er EKKI hægt að afturkalla.`))return;const r=await api(`/admin/entries/${encodeURIComponent(id)}`,{method:'DELETE'});if(r?.ok){await loadEntries();renderEntries();}else alert('Delete failed: '+((r&&r.error)||''));}
 async function adminResetMyPicks(){if(!user)return;const r=await api(`/admin/entries/${encodeURIComponent(user.email)}/reset`,{method:'PUT'});if(r?.ok){picks={};user.locked=false;sessionStorage.setItem('wcUser',JSON.stringify(user));render();}}
 async function loadEntries(){if(!adminPass)return;const d=await api('/entries');if(Array.isArray(d))entries=d;}
 async function loadSyncStatus(){const r=await api('/admin/sync-status');const st=document.getElementById('sync-status');if(r&&st)st.textContent=`Last sync: ${r.lastSync?new Date(r.lastSync).toLocaleTimeString():'aldrei'}`;}
