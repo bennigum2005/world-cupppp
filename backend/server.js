@@ -532,8 +532,10 @@ app.get('/api/leaderboard', (req, res) => {
   const board = (db.entries || []).map(e => {
     const picks = e.picks || {};
     let score = 0;
-    for (const id in results) {
-      if (picks[id] && results[id] && picks[id].n === results[id].n) score++;
+    if (e.locked) {                              // only locked brackets earn points
+      for (const id in results) {
+        if (picks[id] && results[id] && picks[id].n === results[id].n) score++;
+      }
     }
     return { name: e.name, score, locked: !!e.locked };
   }).sort((a, b) => {

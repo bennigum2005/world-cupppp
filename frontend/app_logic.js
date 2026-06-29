@@ -485,7 +485,7 @@ function renderEntries() {
     return;
   }
   if(!entries.length) { el.innerHTML='<div class="card"><div class="empty">No entries yet.</div></div>'; return; }
-  const scored=entries.map(e=>({...e,score:Object.entries(results).filter(([id,r])=>e.picks?.[id]?.n===r.n).length})).sort((a,b)=>b.score-a.score);
+  const scored=entries.map(e=>({...e,score:e.locked?Object.entries(results).filter(([id,r])=>e.picks?.[id]?.n===r.n).length:0})).sort((a,b)=>b.score-a.score);
   let html=`<div class="card"><div class="clabel">All entries (${entries.length})</div>
     <table class="etbl"><thead><tr><th>Player</th><th>Score</th><th>Status</th><th>Actions</th></tr></thead><tbody>`;
   for(const e of scored){
