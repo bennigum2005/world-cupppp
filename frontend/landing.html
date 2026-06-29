@@ -41,6 +41,11 @@
       z-index: 2;
     }
 
+    .cd-title {
+      text-align: center; color: #fff; font-weight: 700;
+      font-size: clamp(13px,3.2vw,20px); letter-spacing: .04em;
+      text-shadow: 0 2px 12px rgba(0,0,0,.9);
+    }
     .cd { display: flex; gap: clamp(10px,3vw,22px); justify-content: center; }
     .cd-unit { display: flex; flex-direction: column; align-items: center; min-width: clamp(48px,13vw,72px); }
     .cd-num {
@@ -98,6 +103,7 @@
 <body>
   <div class="hero">
     <div class="hero-btn-wrap">
+      <div class="cd-title" id="cd-title">16 liða úrslit opnast eftir</div>
       <div class="cd" id="cd">
         <div class="cd-unit"><span class="cd-num" id="cd-d">--</span><span class="cd-lbl">Dagar</span></div>
         <div class="cd-unit"><span class="cd-num" id="cd-h">--</span><span class="cd-lbl">Klst</span></div>
@@ -115,7 +121,7 @@
     function cdTick(){
       var cd = document.getElementById('cd');
       var diff = CD_TARGET - Date.now();
-      if (diff <= 0){ if(cd) cd.style.display='none'; return; }   // hide once it hits zero
+      if (diff <= 0){ if(cd) cd.style.display='none'; var t=document.getElementById('cd-title'); if(t) t.style.display='none'; return; }   // hide once it hits zero
       var s = Math.floor(diff/1000);
       document.getElementById('cd-d').textContent = Math.floor(s/86400);
       document.getElementById('cd-h').textContent = pad(Math.floor(s%86400/3600));
