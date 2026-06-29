@@ -536,7 +536,10 @@ app.get('/api/leaderboard', (req, res) => {
       if (picks[id] && results[id] && picks[id].n === results[id].n) score++;
     }
     return { name: e.name, score, locked: !!e.locked };
-  }).sort((a, b) => b.score - a.score);
+  }).sort((a, b) => {
+    if (a.locked !== b.locked) return a.locked ? -1 : 1;  // locked players ranked first
+    return b.score - a.score;                              // then by points
+  });
   res.json(board);
 });
 
