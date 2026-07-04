@@ -267,17 +267,19 @@ const LOCK_NOW_VERSION = 1;
   } catch (e) { console.error('Lock-now failed:', e.message); }
 })();
 
-/* One-time: lock round 1 and open the Round of 16 as the active round */
-const ROUND_STATE_VERSION = 1;
+/* One-time: open the Round of 16 as the active round.
+   Round 1 is automatically locked because it's no longer the active round;
+   tournamentStarted stays OFF so the active round (R16) can be picked. */
+const ROUND_STATE_VERSION = 2;
 (function startRoundOf16(){
   try {
     const db = readDB();
     if (db.roundStateVersion === ROUND_STATE_VERSION) return;
-    db.bracketState.tournamentStarted = true;   // everything stays locked
-    db.bracketState.activeRound = 'r16';         // second round is now active
+    db.bracketState.tournamentStarted = false;   // let the active round be pickable
+    db.bracketState.activeRound = 'r16';          // Round of 16 is now open; R32 locked (past round)
     db.roundStateVersion = ROUND_STATE_VERSION;
     writeDB(db);
-    console.log('▶ Round of 16 is now the active round (round 1 locked)');
+    console.log('▶ Round of 16 open for picks; Round 1 locked');
   } catch (e) { console.error('Round-state migration failed:', e.message); }
 })();
 
@@ -587,8 +589,13 @@ app.put('/api/entries/:email/picks', (req, res) => {
   const db  = readDB();
   const idx = db.entries.findIndex(e => e.email === decodeURIComponent(req.params.email).toLowerCase());
   if (idx < 0) return res.status(404).json({ error: 'Entry not found.' });
-  if (db.entries[idx].locked) return res.status(403).json({ error: 'Your picks are locked.' });
   if (db.bracketState.tournamentStarted) return res.status(403).json({ error: 'Tournament has started.' });
+  /* Only block if they've locked the CURRENT active round (past-round locks don't block new rounds) */
+  const eff = x => (x === 'final' ? 'third' : x);
+  const active = db.bracketState.activeRound || 'r32';
+  if (db.entries[idx].locked && eff(db.entries[idx].lockedRound) === eff(active)) {
+    return res.status(403).json({ error: 'Your picks for this round are locked.' });
+  }
   db.entries[idx].picks     = picks    || {};
   db.entries[idx].champion  = champion || null;
   db.entries[idx].lastSaved = new Date().toISOString();
