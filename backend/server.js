@@ -267,6 +267,20 @@ const LOCK_NOW_VERSION = 1;
   } catch (e) { console.error('Lock-now failed:', e.message); }
 })();
 
+/* One-time: lock round 1 and open the Round of 16 as the active round */
+const ROUND_STATE_VERSION = 1;
+(function startRoundOf16(){
+  try {
+    const db = readDB();
+    if (db.roundStateVersion === ROUND_STATE_VERSION) return;
+    db.bracketState.tournamentStarted = true;   // everything stays locked
+    db.bracketState.activeRound = 'r16';         // second round is now active
+    db.roundStateVersion = ROUND_STATE_VERSION;
+    writeDB(db);
+    console.log('▶ Round of 16 is now the active round (round 1 locked)');
+  } catch (e) { console.error('Round-state migration failed:', e.message); }
+})();
+
 /* One-time: give every existing entry a unique id (so duplicates can be deleted) */
 const ENTRY_ID_VERSION = 1;
 (function ensureEntryIds(){
@@ -525,10 +539,11 @@ app.get('/api/bracket-state', (req, res) => res.json(readDB().bracketState));
 app.put('/api/bracket-state', (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
   const db = readDB();
-  const { locked, tournamentStarted, teams } = req.body;
+  const { locked, tournamentStarted, teams, activeRound } = req.body;
   if (locked !== undefined) db.bracketState.locked = !!locked;
   if (tournamentStarted !== undefined) db.bracketState.tournamentStarted = !!tournamentStarted;
   if (teams && teams.length === 32) db.bracketState.teams = teams;
+  if (activeRound !== undefined) db.bracketState.activeRound = activeRound;
   writeDB(db); res.json(db.bracketState);
 });
 
