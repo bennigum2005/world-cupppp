@@ -484,9 +484,14 @@ function renderEntries() {
       </div></div>`;
     return;
   }
-  if(!entries.length) { el.innerHTML='<div class="card"><div class="empty">No entries yet.</div></div>'; return; }
-  const scored=entries.map(e=>({...e,score:e.locked?Object.entries(results).filter(([id,r])=>e.picks?.[id]?.n===r.n).length:0})).sort((a,b)=>b.score-a.score);
-  let html=`<div class="card"><div class="clabel">All entries (${entries.length})</div>
+  const scored=entries.map(e=>({...e,score:(typeof e.manualScore==='number')?e.manualScore:(e.locked?Object.entries(results).filter(([id,r])=>e.picks?.[id]?.n===r.n).length:0)})).sort((a,b)=>b.score-a.score);
+  let html=`<div class="card"><div class="clabel">Add player</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
+      <input id="ap-name" placeholder="Name" style="font-size:13px;padding:8px 10px;border:1px solid var(--b2);border-radius:6px;background:var(--s2);color:var(--text);"/>
+      <input id="ap-points" type="number" placeholder="Points" style="width:90px;font-size:13px;padding:8px 10px;border:1px solid var(--b2);border-radius:6px;background:var(--s2);color:var(--text);"/>
+      <button class="btn btn-p" onclick="adminAddPlayer()">+ Add player</button>
+    </div></div>
+    <div class="card"><div class="clabel">All entries (${entries.length})</div>
     <table class="etbl"><thead><tr><th>Player</th><th>Score</th><th>Status</th><th>Actions</th></tr></thead><tbody>`;
   for(const e of scored){
     const init=e.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
@@ -498,6 +503,7 @@ function renderEntries() {
     <td style="font-weight:700;color:var(--gold);font-size:16px;">${e.score}</td>
     <td><span class="bdg ${e.locked?'bg':'bd'}">${e.locked?'🔒':'Open'}</span></td>
     <td><div style="display:flex;gap:6px;">
+      <button class="btn" style="font-size:10px;padding:3px 8px;" onclick="adminSetPoints('${e.id}','${(e.name||'').replace(/'/g,"\\'")}',${e.score})">Points</button>
       <button class="btn btn-d" style="font-size:10px;padding:3px 8px;" onclick="adminResetEntry('${esc}')">Reset</button>
       ${e.locked?`<button class="btn" style="font-size:10px;padding:3px 8px;" onclick="adminUnlockEntry('${esc}')">Unlock</button>`:''}
       <button class="btn" style="font-size:10px;padding:3px 8px;color:#ff6b6b;border-color:#ff6b6b;" onclick="adminDeleteEntry('${e.id}','${esc}')">Delete</button>
@@ -540,6 +546,19 @@ async function manualSync(){
 async function adminResetEntry(email){if(!confirm(`Reset picks for ${email}?`))return;const r=await api(`/admin/entries/${encodeURIComponent(email)}/reset`,{method:'PUT'});if(r?.ok){await loadEntries();renderEntries();}}
 async function adminUnlockEntry(email){if(!confirm(`Unlock picks for ${email}?`))return;const r=await api(`/admin/entries/${encodeURIComponent(email)}/unlock`,{method:'PUT'});if(r?.ok){await loadEntries();renderEntries();}}
 async function adminDeleteEntry(id,email){if(!confirm(`Eyða þátttakanda ${email}? Þetta er EKKI hægt að afturkalla.`))return;const r=await api(`/admin/entries/${encodeURIComponent(id)}`,{method:'DELETE'});if(r?.ok){await loadEntries();renderEntries();}else alert('Delete failed: '+((r&&r.error)||''));}
+async function adminAddPlayer(){
+  const name=(document.getElementById('ap-name')?.value||'').trim();
+  const points=document.getElementById('ap-points')?.value;
+  if(!name){alert('Enter a name.');return;}
+  const r=await api('/admin/add-player',{method:'POST',body:JSON.stringify({name,points:Number(points)||0})});
+  if(r?.ok){await loadEntries();renderEntries();}else alert('Add failed: '+((r&&r.error)||''));
+}
+async function adminSetPoints(id,name,current){
+  const val=prompt(`Points for ${name}:`, current);
+  if(val===null)return;
+  const r=await api(`/admin/entries/${encodeURIComponent(id)}/points`,{method:'PUT',body:JSON.stringify({points:val===''?null:Number(val)})});
+  if(r?.ok){await loadEntries();renderEntries();}else alert('Failed: '+((r&&r.error)||''));
+}
 async function adminResetMyPicks(){if(!user)return;const r=await api(`/admin/entries/${encodeURIComponent(user.email)}/reset`,{method:'PUT'});if(r?.ok){picks={};user.locked=false;sessionStorage.setItem('wcUser',JSON.stringify(user));render();}}
 async function loadEntries(){if(!adminPass)return;const d=await api('/entries');if(Array.isArray(d))entries=d;}
 async function loadSyncStatus(){const r=await api('/admin/sync-status');const st=document.getElementById('sync-status');if(r&&st)st.textContent=`Last sync: ${r.lastSync?new Date(r.lastSync).toLocaleTimeString():'aldrei'}`;}

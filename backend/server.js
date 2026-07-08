@@ -564,7 +564,9 @@ app.get('/api/leaderboard', (req, res) => {
   const board = (db.entries || []).map(e => {
     const picks = e.picks || {};
     let score = 0;
-    if (e.locked) {                              // only locked brackets earn points
+    if (typeof e.manualScore === 'number') {     // admin-set points override
+      score = e.manualScore;
+    } else if (e.locked) {                        // only locked brackets earn points
       for (const id in results) {
         if (picks[id] && results[id] && picks[id].n === results[id].n) score++;
       }
@@ -744,6 +746,41 @@ app.put('/api/admin/entries/:email/unlock', (req, res) => {
   db.entries[idx].locked   = false;
   db.entries[idx].lockedAt = null;
   writeDB(db); res.json({ ok: true });
+});
+
+/* Add a player manually and give them points (for restoring removed people) */
+app.post('/api/admin/add-player', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const name = (req.body.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Name required.' });
+  const db = readDB();
+  const entry = {
+    id: 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    name,
+    email: (req.body.email || '').trim().toLowerCase(),
+    phone: '', passwordHash: '',
+    picks: {}, champion: null,
+    locked: true, lockedRound: 'r32',
+    manualScore: Number(req.body.points) || 0,
+    manual: true,
+    joined: new Date().toISOString()
+  };
+  db.entries.push(entry);
+  writeDB(db);
+  res.json({ ok: true, entry: safeUser(entry) });
+});
+
+/* Set (override) a player's points by id */
+app.put('/api/admin/entries/:id/points', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const db = readDB();
+  const e = db.entries.find(x => x.id === req.params.id);
+  if (!e) return res.status(404).json({ error: 'Entry not found.' });
+  const pts = req.body.points;
+  if (pts === null || pts === '') delete e.manualScore;   // clear override, back to computed
+  else e.manualScore = Number(pts) || 0;
+  writeDB(db);
+  res.json({ ok: true });
 });
 
 /* Delete a participant by unique id (for removing duplicates) */
