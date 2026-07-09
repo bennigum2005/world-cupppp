@@ -283,6 +283,32 @@ const ROUND_STATE_VERSION = 2;
   } catch (e) { console.error('Round-state migration failed:', e.message); }
 })();
 
+/* One-time: restore two accidentally-deleted accounts (with their picks & passwords) */
+const RESTORE_ACCTS_VERSION = 1;
+(function restoreDeletedAccounts(){
+  try {
+    const db = readDB();
+    if (db.restoreAcctsVersion === RESTORE_ACCTS_VERSION) return;
+    const toRestore = [
+      {"name":"Bjarki Valur Guðmundsson","email":"bjarkival@gmail.com","phone":"+3547805260","passwordHash":"$2a$10$a8QOI7rOirQh/tx576XRZu1lTsghDUjFgC3co7VShGjDoIk34zvn."},
+      {"name":"Nikulás Marel Ragnarsson","email":"nikulasmr@gmail.com","phone":"6615489","passwordHash":"$2a$10$uZIKhaGvanvN./OWUIgJUelSRKMm/eye1OjHib.OrQZs5BJJ10JFm"}
+    ];
+    toRestore.forEach(a => {
+      const exists = db.entries.some(e => (e.email || '').toLowerCase() === a.email.toLowerCase());
+      if (!exists) {
+        db.entries.push(Object.assign({
+          id: 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+        }, a, {
+          picks: {}, champion: null, locked: false, joined: new Date().toISOString()
+        }));
+        console.log('Restored account (no points):', a.email);
+      }
+    });
+    db.restoreAcctsVersion = RESTORE_ACCTS_VERSION;
+    writeDB(db);
+  } catch (e) { console.error('Account restore failed:', e.message); }
+})();
+
 /* One-time: give every existing entry a unique id (so duplicates can be deleted) */
 const ENTRY_ID_VERSION = 1;
 (function ensureEntryIds(){
