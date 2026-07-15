@@ -348,7 +348,9 @@ function makeCentreCol() {
   }
   col.appendChild(card);
 
-  /* THIRD PLACE */
+  /* THIRD PLACE — removed from the bracket */
+  return col;
+  /* eslint-disable no-unreachable */
   const tp=M['third']; const {t1:tp1,t2:tp2}=tp;
   const tpPickable=isPickable('third');
   const tpPick=picks['third']||null,tpResult=results['third']||null;
